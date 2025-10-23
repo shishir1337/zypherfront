@@ -9,7 +9,7 @@ $blogs       = getContent('blog.element');
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-12">
-                <span class="ongoing-campaign__title"> {{ __(@$blogContent->data_values->heading) }} </span>
+                <span class="ongoing-campaign__title"> @lang('Latest News') </span>
             </div>
         </div>
         <div class="swiper mySwiper">

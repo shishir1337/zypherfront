@@ -38,13 +38,13 @@
                 <div class="col-lg-6">
                     <div class="banner-right">
                         <div class="banner-right__thumb">
-                            <img src="{{ getImage('assets/images/frontend/banner/' . @$banner->data_values->image_one, '500x360') }}">
+                            <img src="{{ getImage('assets/images/frontend/banner/' . @$banner->data_values->image_one, '500x360') }}?v={{ time() }}">
                             <div class="banner-right__thumb-shape">
-                                <img src="{{ getImage('assets/images/frontend/banner/' . @$banner->data_values->image_two, '155x155') }}">
+                                <img src="{{ getImage('assets/images/frontend/banner/' . @$banner->data_values->image_two, '155x155') }}?v={{ time() }}">
                             </div>
                         </div>
                         <div class="banner-right__shape">
-                            <img src="{{ getImage('assets/images/frontend/banner/' . @$banner->data_values->image_three, '450x285') }}">
+                            <img src="{{ getImage('assets/images/frontend/banner/' . @$banner->data_values->image_three, '450x285') }}?v={{ time() }}">
                         </div>
                         <div class="banner-right__bg">
                             <div class="banner-right__shape-bg-one bg"></div>
@@ -72,7 +72,7 @@
         </div>
     </section>
 
-    @include($activeTemplate . 'sections.blog')
+    {{-- @include($activeTemplate . 'sections.blog') --}}
 
     @if ($sections->secs != null)
         @foreach (json_decode($sections->secs) as $sec)
