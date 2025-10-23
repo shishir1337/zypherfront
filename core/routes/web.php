@@ -33,6 +33,7 @@ Route::controller("TradeController")->prefix('trade')->group(function () {
     Route::get('pairs', 'pairs')->name('trade.pairs');
     Route::get('history/{symbol}', 'history')->name('trade.history');
     Route::get('order/list/{pairSym}', 'orderList')->name('trade.order.list');
+    Route::get('zypher/proxy', 'zypherProxy')->name('trade.zypher.proxy');
     Route::get('/{symbol?}', 'trade')->name('trade');
 });
 

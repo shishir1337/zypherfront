@@ -12,13 +12,16 @@
                         </div>
                         <div class="col-xl-8 col-md-7">
                             <x-flexible-view :view="$activeTemplate . 'trade.pair'" :meta="['pair' => $pair]" />
-                            <x-flexible-view :view="$activeTemplate . 'trade.tab'" :meta="['screen' => 'small', 'markets' => $markets, 'pair' => $pair]" />
+                            <x-flexible-view :view="$activeTemplate . 'trade.chart'" :meta="['pair' => $pair]" />
                             <x-flexible-view :view="$activeTemplate . 'trade.buy_sell'" :meta="[
                                 'pair' => $pair,
                                 'marketCurrencyWallet' => $marketCurrencyWallet,
                                 'coinWallet' => $coinWallet,
                                 'screen' => 'big',
                             ]" />
+                            <div class="d-md-none">
+                                <x-flexible-view :view="$activeTemplate . 'trade.tab'" :meta="['screen' => 'small', 'markets' => $markets, 'pair' => $pair]" />
+                            </div>
                             <div class="d-none d-md-block d-xl-none">
                                 <div class="trading-bottom__tab">
                                     <x-flexible-view :view="$activeTemplate . 'trade.tab'" :meta="['screen' => 'medium', 'markets' => $markets, 'pair' => $pair]" />

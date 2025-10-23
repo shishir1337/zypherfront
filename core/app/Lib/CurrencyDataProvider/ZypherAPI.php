@@ -31,7 +31,7 @@ class ZypherAPI extends CurrencyDataProvider
     protected function configuration()
     {
         return [
-            'base_url' => $this->provider->configuration->base_url->value ?? 'http://localhost:3001/api'
+            'base_url' => $this->provider->configuration->base_url->value ?? env('ZYPHER_API_URL', 'https://zypher.bigbuller.com/api')
         ];
     }
 
@@ -61,13 +61,18 @@ class ZypherAPI extends CurrencyDataProvider
                 $this->setException('Failed to fetch price from Zypher API');
             }
 
+            $currentPrice = $priceData['price'];
+            
+            // Calculate 1H and 24H changes using historical data
+            $oneHourChange = $this->calculatePriceChange(3600); // 1 hour in seconds
+            $twentyFourHourChange = $this->calculatePriceChange(86400); // 24 hours in seconds
+
             // Update currency price
-            $zypherCurrency->rate = $priceData['price'];
+            $zypherCurrency->rate = $currentPrice;
             $zypherCurrency->last_update = time();
             $zypherCurrency->save();
 
             // Update market data for both currency and pair
-            // First update currency market data
             $marketData = $zypherCurrency->marketData;
             
             // Also find and update PAIR market data (ZPH_USD pair)
@@ -77,9 +82,9 @@ class ZypherAPI extends CurrencyDataProvider
             if ($marketData) {
                 // Store previous values
                 $oldPrice = $marketData->price;
-                $newPrice = $priceData['price'];
+                $newPrice = $currentPrice;
                 
-                // Calculate price change percentage
+                // Calculate real-time change (price difference from last price)
                 $priceChange = 0;
                 if ($oldPrice > 0) {
                     $priceChange = (($newPrice - $oldPrice) / $oldPrice) * 100;
@@ -90,41 +95,42 @@ class ZypherAPI extends CurrencyDataProvider
                 $marketData->last_percent_change_1h = $marketData->percent_change_1h;
                 $marketData->last_percent_change_24h = $marketData->percent_change_24h;
                 
-                // Update current values
+                // Update current values with historical calculations
                 $marketData->price = $newPrice;
-                $marketData->percent_change_1h = $priceChange; // Real-time change
-                $marketData->percent_change_24h = $priceChange; // Will be more accurate with historical data
+                $marketData->percent_change_1h = $oneHourChange; // Accurate 1H change
+                $marketData->percent_change_24h = $twentyFourHourChange; // Accurate 24H change
                 
                 // Update HTML classes for up/down indicators
                 $htmlClasses = [
                     'price_change' => $newPrice >= $oldPrice ? 'up text--success' : 'down text--danger',
-                    'percent_change_1h' => $priceChange >= 0 ? 'text--success' : 'text--danger',
-                    'percent_change_24h' => $priceChange >= 0 ? 'text--success' : 'text--danger',
+                    'percent_change_1h' => $oneHourChange >= 0 ? 'text--success' : 'text--danger',
+                    'percent_change_24h' => $twentyFourHourChange >= 0 ? 'text--success' : 'text--danger',
                 ];
                 $marketData->html_classes = $htmlClasses;
                 
-                // You can add market cap calculation if needed
-                // For now, set a placeholder or calculate based on supply
-                if ($marketData->market_cap == 0) {
-                    $marketData->market_cap = $newPrice * 1000000; // Example: 1M ZPH supply
-                }
+                // Calculate marketcap more accurately
+                // Try to get supply info if available, otherwise use conservative estimate
+                $marketcap = $this->calculateMarketCap($newPrice);
+                $marketData->market_cap = $marketcap;
                 
                 $marketData->save();
             } else {
                 // Create market data if doesn't exist
+                $marketcap = $this->calculateMarketCap($currentPrice);
+                
                 $marketData = MarketData::create([
                     'currency_id' => $zypherCurrency->id,
                     'symbol' => 'ZPH',
-                    'price' => $priceData['price'],
-                    'last_price' => $priceData['price'],
-                    'percent_change_1h' => 0,
-                    'percent_change_24h' => 0,
-                    'market_cap' => $priceData['price'] * 1000000,
+                    'price' => $currentPrice,
+                    'last_price' => $currentPrice,
+                    'percent_change_1h' => $oneHourChange,
+                    'percent_change_24h' => $twentyFourHourChange,
+                    'market_cap' => $marketcap,
                     'pair_id' => 0,
                     'html_classes' => [
                         'price_change' => 'text--base',
-                        'percent_change_1h' => 'text--base',
-                        'percent_change_24h' => 'text--base',
+                        'percent_change_1h' => $oneHourChange >= 0 ? 'text--success' : 'text--danger',
+                        'percent_change_24h' => $twentyFourHourChange >= 0 ? 'text--success' : 'text--danger',
                     ]
                 ]);
             }
@@ -132,23 +138,18 @@ class ZypherAPI extends CurrencyDataProvider
             // IMPORTANT: Also update PAIR market data (what shows on trade page!)
             if ($pairMarketData) {
                 $oldPairPrice = $pairMarketData->price;
-                $newPairPrice = $priceData['price'];
-                
-                // Calculate change
-                $pairPriceChange = 0;
-                if ($oldPairPrice > 0) {
-                    $pairPriceChange = (($newPairPrice - $oldPairPrice) / $oldPairPrice) * 100;
-                }
+                $newPairPrice = $currentPrice;
                 
                 $pairMarketData->last_price = $oldPairPrice;
                 $pairMarketData->price = $newPairPrice;
-                $pairMarketData->percent_change_1h = $pairPriceChange;
-                $pairMarketData->percent_change_24h = $pairPriceChange;
-                $pairMarketData->market_cap = $newPairPrice * 1000000; // 1M supply example
+                $pairMarketData->percent_change_1h = $oneHourChange;
+                $pairMarketData->percent_change_24h = $twentyFourHourChange;
+                $marketcap = $this->calculateMarketCap($newPairPrice);
+                $pairMarketData->market_cap = $marketcap;
                 $pairMarketData->html_classes = [
                     'price_change' => $newPairPrice >= $oldPairPrice ? 'up text--success' : 'down text--danger',
-                    'percent_change_1h' => $pairPriceChange >= 0 ? 'text--success' : 'text--danger',
-                    'percent_change_24h' => $pairPriceChange >= 0 ? 'text--success' : 'text--danger',
+                    'percent_change_1h' => $oneHourChange >= 0 ? 'text--success' : 'text--danger',
+                    'percent_change_24h' => $twentyFourHourChange >= 0 ? 'text--success' : 'text--danger',
                 ];
                 $pairMarketData->save();
             }
@@ -253,6 +254,159 @@ class ZypherAPI extends CurrencyDataProvider
         ]);
 
         return 1;
+    }
+
+    /**
+     * Calculate price change over a time period using historical candle data
+     *
+     * @param int $secondsAgo Number of seconds to look back
+     * @return float Percentage change
+     */
+    protected function calculatePriceChange($secondsAgo)
+    {
+        try {
+            $currentTime = time();
+            $pastTime = $currentTime - $secondsAgo;
+            
+            // Fetch current price
+            $priceData = $this->getCurrentPrice();
+            $currentPrice = $priceData ? floatval($priceData['price']) : 0;
+            
+            if ($currentPrice <= 0) {
+                \Log::warning('Invalid current price for Zypher: ' . $currentPrice);
+                return 0;
+            }
+            
+            // Fetch 1-minute candle data from past time period
+            $url = $this->apiBaseUrl . '/tradingview/history?symbol=ZPHUSD&resolution=1&from=' . $pastTime . '&to=' . $currentTime;
+            \Log::info('Fetching Zypher history: ' . $url);
+            
+            $response = CurlRequest::curlContent($url);
+            $data = json_decode($response, true);
+            
+            \Log::info('Zypher history response status: ' . ($data['s'] ?? 'unknown'));
+            
+            if (isset($data['s']) && $data['s'] === 'ok' && isset($data['o']) && isset($data['c'])) {
+                $candleCount = count($data['o']);
+                \Log::info('Zypher candles received: ' . $candleCount);
+                
+                if ($candleCount > 0) {
+                    // Get oldest candle opening price and newest closing price
+                    $oldPrice = floatval($data['o'][0]); // Opening price from oldest candle
+                    $newPrice = floatval($data['c'][$candleCount - 1]); // Closing price from newest candle
+                    
+                    \Log::info("Zypher price change: Old=$oldPrice, New=$newPrice, Current=$currentPrice");
+                    
+                    // Validate prices make sense
+                    if ($oldPrice > 0 && $newPrice > 0) {
+                        // Check if old price is unreasonably far from current price (suspicious data)
+                        $priceDiffPercent = abs(($currentPrice - $oldPrice) / $oldPrice) * 100;
+                        
+                        if ($priceDiffPercent > 50) {
+                            // Price movement > 50% in this period is suspicious
+                            \Log::warning("Suspicious price movement detected: $priceDiffPercent%, oldPrice=$oldPrice, newPrice=$newPrice");
+                            // Use current price as reference instead
+                            $oldPrice = $currentPrice;
+                        }
+                        
+                        $change = (($newPrice - $oldPrice) / $oldPrice) * 100;
+                        
+                        // Safety check: if change is still unreasonable (>500%), use fallback
+                        if (abs($change) > 500) {
+                            \Log::warning("Unreasonable price change detected: $change%, using fallback");
+                            return $this->calculatePriceChangeFallback($secondsAgo);
+                        }
+                        
+                        \Log::info("Zypher $secondsAgo sec change: " . $change . '%');
+                        return $change;
+                    }
+                }
+            } else {
+                \Log::warning('Invalid Zypher history response: ' . json_encode($data));
+            }
+            
+            // Fallback to database last price
+            return $this->calculatePriceChangeFallback($secondsAgo);
+            
+        } catch (Exception $ex) {
+            \Log::error('Error calculating price change: ' . $ex->getMessage());
+            return $this->calculatePriceChangeFallback($secondsAgo);
+        }
+    }
+
+    /**
+     * Calculate price change using stored database values (fallback method)
+     *
+     * @param int $secondsAgo Number of seconds to look back
+     * @return float Percentage change
+     */
+    protected function calculatePriceChangeFallback($secondsAgo)
+    {
+        try {
+            $zypherCurrency = Currency::where('symbol', 'ZPH')->first();
+            
+            if (!$zypherCurrency) {
+                return 0;
+            }
+            
+            $marketData = $zypherCurrency->marketData;
+            
+            if (!$marketData) {
+                return 0;
+            }
+            
+            $currentPrice = floatval($marketData->price);
+            $lastPrice = floatval($marketData->last_price);
+            
+            // Use appropriate historical field based on time period
+            if ($secondsAgo <= 3600) {
+                // For 1H, use last_percent_change_1h if available
+                $storedChange = floatval($marketData->last_percent_change_1h ?? 0);
+            } else {
+                // For 24H, use last_percent_change_24h if available
+                $storedChange = floatval($marketData->last_percent_change_24h ?? 0);
+            }
+            
+            // If we have a stored previous change, average it with current change
+            if ($lastPrice > 0 && $currentPrice > 0) {
+                $currentChange = (($currentPrice - $lastPrice) / $lastPrice) * 100;
+                // Return stored change (more reliable) or current change if no stored value
+                return $storedChange !== 0 ? $storedChange : $currentChange;
+            }
+            
+            return 0;
+        } catch (Exception $ex) {
+            \Log::error('Error in fallback price calculation: ' . $ex->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Calculate marketcap for ZPH
+     *
+     * @param float $price Current price
+     * @return float Calculated marketcap
+     */
+    protected function calculateMarketCap($price)
+    {
+        try {
+            // Try to fetch supply info from Zypher API if available
+            $url = $this->apiBaseUrl . '/supply';
+            $response = CurlRequest::curlContent($url);
+            $data = json_decode($response, true);
+            
+            if (isset($data['success']) && $data['success'] && isset($data['data']['circulating_supply'])) {
+                $supply = floatval($data['data']['circulating_supply']);
+                return $price * $supply;
+            }
+        } catch (Exception $ex) {
+            \Log::warning('Could not fetch ZPH supply info: ' . $ex->getMessage());
+        }
+        
+        // Fallback: Use a reasonable estimate
+        // Assuming 10 million ZPH in circulation (adjust as needed)
+        $defaultSupply = 10000000;
+        return $price * $defaultSupply;
     }
 }
 

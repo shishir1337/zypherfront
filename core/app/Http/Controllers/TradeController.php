@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\Trade;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 
 class TradeController extends Controller {
@@ -124,6 +125,43 @@ class TradeController extends Controller {
             'sell_side_orders' => @$sellSideOrders ?? [],
             'buy_side_orders'  => @$buySideOrders ?? [],
         ]);
+    }
+
+    public function zypherProxy(Request $request) {
+        // Proxy for Zypher API to avoid CORS issues
+        $endpoint = $request->input('endpoint', 'tradingview/price');
+        $symbol = $request->input('symbol', 'ZPHUSD');
+        $resolution = $request->input('resolution');
+        $from = $request->input('from');
+        $to = $request->input('to');
+        
+        $apiUrl = env('ZYPHER_API_URL', 'https://zypher.bigbuller.com/api');
+        $url = $apiUrl . '/' . $endpoint;
+        
+        // Build query parameters
+        $params = ['symbol' => $symbol];
+        if ($resolution) $params['resolution'] = $resolution;
+        if ($from) $params['from'] = $from;
+        if ($to) $params['to'] = $to;
+        
+        try {
+            $response = Http::timeout(10)->get($url, $params);
+            
+            if ($response->successful()) {
+                return response()->json($response->json());
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to fetch data from Zypher API',
+                    'status' => $response->status()
+                ], $response->status());
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error connecting to Zypher API: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     private function findPair($symbol = null) {

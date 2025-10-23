@@ -76,7 +76,7 @@ class BinaryTradeOrderController extends Controller {
         if ($isZypher) {
             // Use Zypher API for ZPH pairs
             try {
-                $response = Http::timeout(5)->get('http://localhost:3001/api/tradingview/price');
+                $response = Http::timeout(5)->get(env('ZYPHER_API_URL', 'https://zypher.bigbuller.com/api') . '/tradingview/price');
                 
                 if (!$response->successful()) {
                     return response()->json(['error' => 'Failed to get ZPH price. Please ensure Zypher API is running.']);
@@ -164,7 +164,7 @@ class BinaryTradeOrderController extends Controller {
         if ($isZypher) {
             // Use Zypher API for ZPH pairs
             try {
-                $response = Http::timeout(5)->get('http://localhost:3001/api/tradingview/price');
+                $response = Http::timeout(5)->get(env('ZYPHER_API_URL', 'https://zypher.bigbuller.com/api') . '/tradingview/price');
                 
                 if (!$response->successful()) {
                     $binaryTrade->status = Status::ENABLE;

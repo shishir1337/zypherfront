@@ -510,13 +510,13 @@
                 if (activeCoin.toUpperCase().includes('ZPH')) {
                     // Use Zypher API for ZPH pairs
                     const now = Math.floor(Date.now() / 1000);
-                    const from = now - 3600; // Last hour
-                    BINANCE_API_URL = `http://localhost:3001/api/tradingview/history?symbol=ZPHUSD&resolution=1&from=${from}&to=${now}`;
+                    const from = now - (6 * 3600); // Last 6 hours
+                    BINANCE_API_URL = `https://zypher.bigbuller.com/api/tradingview/history?symbol=ZPHUSD&resolution=1&from=${from}&to=${now}`;
                     BINANCE_WEBSOCKET_URL = null; // Zypher uses Socket.IO, not WebSocket
                 } else {
                     // Use Binance for other pairs
-                    BINANCE_API_URL = `https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=1s&limit=2000`;
-                    BINANCE_WEBSOCKET_URL = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_1s`;
+                    BINANCE_API_URL = `https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=1m&limit=500`;
+                    BINANCE_WEBSOCKET_URL = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_1m`;
                 }
             }
 
@@ -550,41 +550,54 @@
             }
 
             function initializeChart() {
+                try {
+                    if (typeof LightweightCharts === 'undefined') return;
+                    
+                    const container = document.getElementById('chart-container');
+                    if (!container) return;
 
-                chart = LightweightCharts.createChart(
-                    document.getElementById('chart-container'),
-                    chartProperties
-                );
+                    chart = LightweightCharts.createChart(container, chartProperties);
 
-                // Add candlestick series for better visual representation
-                candlestickSeries = chart.addCandlestickSeries({
-                    upColor: '#26a69a',
-                    downColor: '#ef5350',
-                    borderVisible: false,
-                    wickUpColor: '#26a69a',
-                    wickDownColor: '#ef5350',
-                });
+                    candlestickSeries = chart.addCandlestickSeries({
+                        upColor: '#26a69a',
+                        downColor: '#ef5350',
+                        borderUpColor: '#26a69a',
+                        borderDownColor: '#ef5350',
+                        borderVisible: true,
+                        wickUpColor: '#26a69a',
+                        wickDownColor: '#ef5350',
+                        wickVisible: true,
+                    });
 
-                const tvLogo = document.querySelector('#tv-attr-logo');
-                if (tvLogo) {
-                    tvLogo.style.display = 'none';
+                    const tvLogo = document.querySelector('#tv-attr-logo');
+                    if (tvLogo) {
+                        tvLogo.style.display = 'none';
+                    }
+                    loadHistoricalData();
+                    initializeWebSocket();
+                    setupDirectionIndicators();
+                } catch (error) {
+                    console.error('Binary chart error:', error.message);
                 }
-                loadHistoricalData();
-                initializeWebSocket();
-                setupDirectionIndicators()
-
             }
 
             async function loadHistoricalData() {
                 try {
                     const response = await fetch(BINANCE_API_URL);
+                    
+                    if (!response.ok) {
+                        console.error(`API Error: ${response.status} ${response.statusText}`);
+                        notify('error', 'Failed to load chart data. Retrying...');
+                        setTimeout(loadHistoricalData, 3000);
+                        return;
+                    }
+                    
                     const data = await response.json();
                     
                     let candleData = [];
                     
-                    // Check if it's Zypher API response format
                     if (data.s === 'ok' && data.t && data.c) {
-                        // Zypher TradingView format (OHLC)
+                        // Zypher format
                         candleData = data.t.map((time, i) => ({
                             time: time,
                             open: parseFloat(data.o[i]),
@@ -592,10 +605,8 @@
                             low: parseFloat(data.l[i]),
                             close: parseFloat(data.c[i])
                         }));
-                        
-                        console.log('✓ Loaded Zypher candlestick data:', candleData.length, 'candles');
                     } else if (Array.isArray(data)) {
-                        // Binance klines format [time, open, high, low, close, volume, ...]
+                        // Binance format
                         candleData = data.map(d => ({
                             time: d[0] / 1000,
                             open: parseFloat(d[1]),
@@ -603,10 +614,14 @@
                             low: parseFloat(d[3]),
                             close: parseFloat(d[4])
                         }));
-                        
-                        console.log('✓ Loaded Binance candlestick data:', candleData.length, 'candles');
+                    } else if (data.code) {
+                        // Binance error response
+                        console.error('Binance API Error:', data.msg);
+                        notify('error', `Chart error: ${data.msg}`);
+                        return;
                     } else {
-                        console.error('Unknown data format:', data);
+                        console.error('Unexpected data format:', data);
+                        notify('error', 'Unexpected chart data format');
                         return;
                     }
 
@@ -614,58 +629,130 @@
                         candlestickSeries.setData(candleData);
                         lastPrice = candleData[candleData.length - 1].close;
                         chart.timeScale().fitContent();
+                    } else {
+                        console.warn('No candle data received');
                     }
-
                 } catch (error) {
-                    console.error('Error loading historical data:', error);
+                    console.error('Binary data error:', error.message);
+                    notify('error', 'Chart data load failed. Retrying in 3 seconds...');
+                    setTimeout(loadHistoricalData, 3000);
                 }
             }
 
             function initializeWebSocket() {
                 if (!BINANCE_WEBSOCKET_URL) {
-                    // For ZPH, use Socket.IO instead of WebSocket
                     if (activeCoin.toUpperCase().includes('ZPH')) {
-                        socketIO = io('http://localhost:3001');
-                        
-                        socketIO.on('connect', () => {
-                            console.log('✓ Connected to Zypher Socket.IO');
-                            socketIO.emit('subscribe', { symbol: 'ZPHUSD' });
-                        });
-                        
-                        // Handle live OHLC ticks (every second)
-                        socketIO.on('live_ohlc', (data) => {
-                            if (data.symbol === 'ZPHUSD') {
-                                updateCandle({
-                                    open: parseFloat(data.open),
-                                    high: parseFloat(data.high),
-                                    low: parseFloat(data.low),
-                                    close: parseFloat(data.close),
-                                    volume: parseFloat(data.volume || 0)
-                                });
-                                lastPrice = parseFloat(data.close);
-                                updatePriceDot(lastPrice);
-                            }
-                        });
-                        
-                        // Handle price updates (fallback)
-                        socketIO.on('price_update', (data) => {
-                            if (data.symbol === 'ZPHUSD') {
-                                updateCandleFromPrice(parseFloat(data.price));
-                                lastPrice = parseFloat(data.price);
-                                updatePriceDot(lastPrice);
-                            }
-                        });
-                        
-                        socketIO.on('disconnect', () => {
-                            console.log('✗ Disconnected from Zypher Socket.IO');
-                        });
+                        setupZypherConnection();
                     }
                     return;
                 }
                 
-                // Standard Binance WebSocket for other pairs
-                webSocket = new WebSocket(BINANCE_WEBSOCKET_URL);
-                webSocket.onmessage = handleWebSocketMessage;
+                setupBinanceWebSocket();
+            }
+            
+            let wsReconnectAttempts = 0;
+            const maxReconnectAttempts = 5;
+            let wsReconnectTimeout = null;
+            
+            function setupBinanceWebSocket() {
+                if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+                    return; // Already connected
+                }
+                
+                try {
+                    webSocket = new WebSocket(BINANCE_WEBSOCKET_URL);
+                    
+                    webSocket.onopen = () => {
+                        console.log('Binance WebSocket connected');
+                        wsReconnectAttempts = 0;
+                    };
+                    
+                    webSocket.onmessage = handleWebSocketMessage;
+                    
+                    webSocket.onerror = (error) => {
+                        console.error('Binance WebSocket error:', error);
+                    };
+                    
+                    webSocket.onclose = () => {
+                        console.warn('Binance WebSocket closed, reconnecting...');
+                        attemptWebSocketReconnect();
+                    };
+                } catch (error) {
+                    console.error('Error creating WebSocket:', error);
+                    attemptWebSocketReconnect();
+                }
+            }
+            
+            function attemptWebSocketReconnect() {
+                if (wsReconnectAttempts >= maxReconnectAttempts) {
+                    console.error('Max WebSocket reconnection attempts reached');
+                    return;
+                }
+                
+                wsReconnectAttempts++;
+                const delay = Math.min(1000 * Math.pow(2, wsReconnectAttempts - 1), 30000); // Exponential backoff, max 30s
+                
+                console.log(`Attempting WebSocket reconnect in ${delay}ms (attempt ${wsReconnectAttempts}/${maxReconnectAttempts})`);
+                
+                if (wsReconnectTimeout) {
+                    clearTimeout(wsReconnectTimeout);
+                }
+                
+                wsReconnectTimeout = setTimeout(() => {
+                    setupBinanceWebSocket();
+                }, delay);
+            }
+            
+            function setupZypherConnection() {
+                if (socketIO && socketIO.connected) {
+                    return; // Already connected
+                }
+                
+                try {
+                    socketIO = io('https://zypher.bigbuller.com', {
+                        reconnection: true,
+                        reconnectionDelay: 1000,
+                        reconnectionDelayMax: 5000,
+                        reconnectionAttempts: 5
+                    });
+                    
+                    socketIO.on('connect', () => {
+                        console.log('Zypher Socket.IO connected');
+                        socketIO.emit('subscribe', { symbol: 'ZPHUSD' });
+                    });
+                    
+                    socketIO.on('live_ohlc', (data) => {
+                        if (data.symbol === 'ZPHUSD') {
+                            updateCandle({
+                                open: parseFloat(data.open),
+                                high: parseFloat(data.high),
+                                low: parseFloat(data.low),
+                                close: parseFloat(data.close),
+                                volume: parseFloat(data.volume || 0)
+                            });
+                            lastPrice = parseFloat(data.close);
+                            updatePriceDot(lastPrice);
+                        }
+                    });
+                    
+                    socketIO.on('price_update', (data) => {
+                        if (data.symbol === 'ZPHUSD') {
+                            updateCandleFromPrice(parseFloat(data.price));
+                            lastPrice = parseFloat(data.price);
+                            updatePriceDot(lastPrice);
+                        }
+                    });
+                    
+                    socketIO.on('error', (error) => {
+                        console.error('Zypher Socket.IO error:', error);
+                    });
+                    
+                    socketIO.on('disconnect', () => {
+                        console.warn('Zypher Socket.IO disconnected');
+                    });
+                } catch (error) {
+                    console.error('Error setting up Zypher connection:', error);
+                }
             }
 
             function handleWebSocketMessage(event) {
@@ -687,6 +774,12 @@
             // Update candle tick-by-tick with OHLC data
             function updateCandle(data) {
                 if (!candlestickSeries) return;
+                
+                // Validate data
+                if (!data || !data.close || isNaN(data.close) || !isFinite(data.close)) {
+                    console.warn('⚠️ Invalid candle data:', data);
+                    return;
+                }
                 
                 const now = Math.floor(Date.now() / 1000);
                 const currentMinuteStart = Math.floor(now / 60) * 60;
@@ -711,12 +804,23 @@
                     };
                 }
                 
-                // Update chart with current candle
-                candlestickSeries.update(currentCandle);
-                
-                // Update investment line if exists
-                if (investmentPriceLine) {
-                    updateInvestmentLine();
+                // Validate candle before updating chart
+                if (currentCandle.open && currentCandle.high && currentCandle.low && currentCandle.close &&
+                    !isNaN(currentCandle.open) && !isNaN(currentCandle.high) && 
+                    !isNaN(currentCandle.low) && !isNaN(currentCandle.close)) {
+                    try {
+                        // Update chart with current candle
+                        candlestickSeries.update(currentCandle);
+                        
+                        // Update investment line if exists
+                        if (investmentPriceLine) {
+                            updateInvestmentLine();
+                        }
+                    } catch (error) {
+                        console.error('❌ Error updating binary chart:', error, 'Candle:', currentCandle);
+                    }
+                } else {
+                    console.warn('⚠️ Skipping binary chart update - invalid candle:', currentCandle);
                 }
             }
 
@@ -965,7 +1069,11 @@
                 });
             }
 
-            document.addEventListener('DOMContentLoaded', initializeChart);
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => {
+                    initializeChart();
+                }, 100);
+            });
             let higherBtn = $('#higherBtn');
             let lowerBtn = $('#lowerBtn');
             let minInvest = minTradeAmount;

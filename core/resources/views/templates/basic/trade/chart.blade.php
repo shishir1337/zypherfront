@@ -5,75 +5,65 @@
 @endphp
 
 <div class="trading-chart p-0 two">
-    {{-- Lightweight Charts for ALL pairs --}}
+    <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: #1e222d; border-bottom: 1px solid #2B2B43;">
+        <div class="chart-title" style="color: #d1d4dc; font-size: 14px; font-weight: 500;">
+            {{ $pair->symbol }} Chart
+        </div>
+        <div class="interval-buttons" style="display: flex; gap: 5px;">
+            <button class="interval-btn active" data-interval="1m" data-zypher="1" style="padding: 5px 12px; background: #2962ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s;">1m</button>
+            <button class="interval-btn" data-interval="5m" data-zypher="5" style="padding: 5px 12px; background: #2B2B43; color: #d1d4dc; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s;">5m</button>
+            <button class="interval-btn" data-interval="15m" data-zypher="15" style="padding: 5px 12px; background: #2B2B43; color: #d1d4dc; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s;">15m</button>
+            <button class="interval-btn" data-interval="1h" data-zypher="60" style="padding: 5px 12px; background: #2B2B43; color: #d1d4dc; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s;">1h</button>
+            <button class="interval-btn" data-interval="1d" data-zypher="1D" style="padding: 5px 12px; background: #2B2B43; color: #d1d4dc; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s;">1d</button>
+        </div>
+    </div>
     <div id="trading-chart-container" style="width: 100%; height: 450px;"></div>
 </div>
 
-{{-- Scripts for all pairs --}}
 @push('style')
 <style>
-    /* Quotex-style ultra-smooth price updates */
     .market-price-{{ @$pair->marketData->id }},
     .price-icon-{{ @$pair->marketData->id }},
     .order-book-price-all,
     .market-last-price-{{ @$pair->marketData->id }},
     .market-percent-change-1h-{{ @$pair->marketData->id }} {
-        /* Fixed-width numbers prevent layout shift */
         font-variant-numeric: tabular-nums;
         font-family: 'SF Mono', 'Roboto Mono', 'Courier New', monospace;
         font-weight: 500;
         letter-spacing: 0.5px;
-        
-        /* Buttery smooth color transitions (Quotex-style) */
-        transition: 
-            color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-            background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-            opacity 0.3s ease-out;
-        
-        /* GPU acceleration + subpixel rendering */
-        will-change: contents;
-        transform: translateZ(0) translate3d(0, 0, 0);
-        -webkit-font-smoothing: subpixel-antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        backface-visibility: hidden;
-        
-        /* Prevent text selection flicker */
+        transition: color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         user-select: none;
-        -webkit-user-select: none;
-        -webkit-tap-highlight-color: transparent;
     }
     
-    /* Prevent layout shift during updates */
-    .trading-header__title,
-    .trading-header-number {
-        min-width: 120px;
-    }
-    
-    /* Remove TradingView watermark/attribution completely */
     #trading-chart-container div[style*="position: absolute"],
-    #trading-chart-container a[href*="tradingview"],
-    #trading-chart-container > div > div:last-child {
+    #trading-chart-container a[href*="tradingview"] {
         display: none !important;
-        visibility: hidden !important;
     }
     
-    /* Smooth chart interactions */
     #trading-chart-container {
         cursor: crosshair;
         position: relative;
         overflow: hidden;
     }
     
-    /* Smooth chart canvas rendering */
-    #trading-chart-container canvas {
-        image-rendering: -webkit-optimize-contrast;
-        image-rendering: crisp-edges;
+    .interval-btn:hover {
+        background: #3a3e4a !important;
+    }
+    
+    .interval-btn.active {
+        background: #2962ff !important;
+        color: white !important;
+    }
+    
+    .interval-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 </style>
 @endpush
 
 @push('script-lib')
-    <script src="{{ asset($activeTemplateTrue . 'js/lightweight-chart.js') }}"></script>
+    <script src="{{ asset($activeTemplateTrue . 'js/lightweight-chart.js') }}?v={{ time() }}"></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 @endpush
 
@@ -81,22 +71,23 @@
 <script>
     'use strict';
     (function($) {
-        const ZYPHER_API_URL = 'http://localhost:3001/api';
-        const ZYPHER_SOCKET_URL = 'http://localhost:3001';
+        const ZYPHER_API_URL = 'https://zypher.bigbuller.com/api';
+        const ZYPHER_SOCKET_URL = 'https://zypher.bigbuller.com';
         const PAIR_SYMBOL = '{{ $pair->symbol }}';
         const IS_ZYPHER = {{ $isZypher ? 'true' : 'false' }};
         
-        let chart;
-        let candlestickSeries;
-        let socket;
-        let webSocket;
+        let chart, candlestickSeries, socket, webSocket;
         let currentCandle = null;
         let currentPrice = 0;
-        let priceLine = null;
+        let lastPrice = 0;
+        let isLoadingMore = false;
+        let oldestTimestamp = null;
+        let allCandles = [];
+        let currentInterval = '1m'; // Default interval
+        let currentZypherResolution = '1'; // Default Zypher resolution
 
-        // Chart configuration
         const chartOptions = {
-            width: document.getElementById('trading-chart-container').offsetWidth,
+            width: document.getElementById('trading-chart-container')?.offsetWidth || 1200,
             height: 450,
             layout: {
                 background: { color: '#1e222d' },
@@ -118,517 +109,449 @@
                 secondsVisible: false,
             },
             watermark: {
-                visible: false,  // Hide TradingView watermark
-            },
-            handleScale: {
-                mouseWheel: true,
-                pinch: true,
-                axisPressedMouseMove: true,
-            },
-            handleScroll: {
-                mouseWheel: true,
-                pressedMouseMove: true,
-                horzTouchDrag: true,
-                vertTouchDrag: true,
+                visible: false,
             },
         };
 
         function initChart() {
-            chart = LightweightCharts.createChart(
-                document.getElementById('trading-chart-container'),
-                chartOptions
-            );
+            try {
+                if (typeof LightweightCharts === 'undefined') {
+                    return;
+                }
+                
+                const container = document.getElementById('trading-chart-container');
+                if (!container) return;
+                
+                chart = LightweightCharts.createChart(container, chartOptions);
 
-            // Add candlestick series
-            candlestickSeries = chart.addCandlestickSeries({
-                upColor: '#26a69a',
-                downColor: '#ef5350',
-                borderVisible: false,
-                wickUpColor: '#26a69a',
-                wickDownColor: '#ef5350',
-            });
-
-            // Load historical data
-            loadHistoricalData();
-            
-            // Setup real-time updates (Socket.IO for ZPH, WebSocket for others)
-            if (IS_ZYPHER) {
-                setupSocketIO();
-                startPricePolling(); // Fallback for ZPH
-            } else {
-                setupBinanceWebSocket();
-            }
-
-            // Auto-resize chart
-            window.addEventListener('resize', () => {
-                chart.applyOptions({ 
-                    width: document.getElementById('trading-chart-container').offsetWidth 
+                candlestickSeries = chart.addCandlestickSeries({
+                    upColor: '#26a69a',
+                    downColor: '#ef5350',
+                    borderUpColor: '#26a69a',
+                    borderDownColor: '#ef5350',
+                    borderVisible: true,
+                    wickUpColor: '#26a69a',
+                    wickDownColor: '#ef5350',
+                    wickVisible: true,
                 });
-            });
+
+                loadHistoricalData();
+                
+                if (IS_ZYPHER) {
+                    setupZypherConnection();
+                } else {
+                    setupBinanceConnection();
+                    
+                    // Infinite scroll for Binance
+                    chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+                        const logicalRange = chart.timeScale().getVisibleLogicalRange();
+                        if (logicalRange !== null && logicalRange.from < 10 && !isLoadingMore) {
+                            loadMoreBinanceData();
+                        }
+                    });
+                }
+
+                window.addEventListener('resize', () => {
+                    chart.applyOptions({ 
+                        width: document.getElementById('trading-chart-container').offsetWidth 
+                    });
+                });
+            } catch (error) {
+                console.error('Chart error:', error.message);
+            }
         }
 
         async function loadHistoricalData() {
             try {
-                let apiUrl, candles;
-                const symbol = PAIR_SYMBOL.replace('_', '');
-                
                 if (IS_ZYPHER) {
-                    // Zypher API for ZPH pairs
-                    const toTimestamp = Math.floor(Date.now() / 1000);
-                    const fromTimestamp = toTimestamp - (24 * 60 * 60); // Last 24 hours
-                    apiUrl = `${ZYPHER_API_URL}/tradingview/history?symbol=ZPHUSD&resolution=1&from=${fromTimestamp}&to=${toTimestamp}`;
-                    
-                    const response = await fetch(apiUrl);
-                    const data = await response.json();
-                    
-                    if (data.s === 'ok' && data.t && data.t.length > 0) {
-                        candles = data.t.map((time, i) => ({
-                            time: time,
-                            open: parseFloat(data.o[i]),
-                            high: parseFloat(data.h[i]),
-                            low: parseFloat(data.l[i]),
-                            close: parseFloat(data.c[i]),
-                        }));
-                        console.log('✅ Loaded', candles.length, 'candles from Zypher API');
-                    } else {
-                        console.warn('⚠️ No data available from Zypher API');
-                        showNoDataMessage();
-                        return;
-                    }
+                    await loadZypherData();
                 } else {
-                    // Binance API for other pairs - Try with USDT if USD doesn't work
-                    let binanceSymbol = symbol.toUpperCase();
-                    // Convert USD to USDT for Binance compatibility
-                    if (binanceSymbol.endsWith('USD') && !binanceSymbol.endsWith('USDT')) {
-                        binanceSymbol = binanceSymbol.replace('USD', 'USDT');
-                    }
-                    
-                    apiUrl = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1m&limit=1440`; // Last 24 hours of 1-minute candles
-                    
-                    console.log('📡 Fetching from Binance:', apiUrl);
-                    const response = await fetch(apiUrl);
-                    const data = await response.json();
-                    
-                    if (Array.isArray(data) && data.length > 0) {
-                        candles = data.map(d => ({
-                            time: d[0] / 1000,
-                            open: parseFloat(d[1]),
-                            high: parseFloat(d[2]),
-                            low: parseFloat(d[3]),
-                            close: parseFloat(d[4]),
-                        }));
-                        console.log('✅ Loaded', candles.length, 'candles from Binance API');
-                    } else {
-                        console.warn('⚠️ No data available from Binance for', binanceSymbol);
-                        console.log('API Response:', data);
-                        showErrorMessage(`No Binance data for ${binanceSymbol}. This pair may not be available on Binance.`);
-                        return;
-                    }
-                }
-                
-                if (candles && candles.length > 0) {
-                    candlestickSeries.setData(candles);
-                    chart.timeScale().fitContent();
+                    await loadBinanceData();
                 }
             } catch (error) {
-                console.error('❌ Error loading historical data:', error);
-                showErrorMessage('Failed to load chart data: ' + error.message);
+                console.error('Error loading data:', error.message);
             }
         }
 
-        let lastCandleUpdate = 0;
-        let candleUpdateThrottle = 600; // Very slow for Quotex-style smoothness (1 second = 1 update/sec)
-        let pendingCandleUpdate = null;
-        let queuedCandlePrice = null;
-        let smoothCandleEnabled = true; // Enable smooth candle transitions
-
-        function updateCandle(price) {
-            if (!candlestickSeries) return;
-            
-            // Queue the latest price
-            queuedCandlePrice = price;
-            
-            // Heavy throttling for smooth, controlled updates
-            const now = Date.now();
-            if (now - lastCandleUpdate < candleUpdateThrottle) {
-                return; // Skip this update, will use queued price on next cycle
+        async function loadZypherData() {
+            try {
+                const toTimestamp = Math.floor(Date.now() / 1000);
+                // Always fetch more data for aggregation
+                let timeRange = 6 * 3600; // Default 6 hours
+                if (currentInterval === '5m') timeRange = 12 * 3600; // 12 hours for 5m
+                else if (currentInterval === '15m') timeRange = 24 * 3600; // 24 hours for 15m
+                else if (currentInterval === '1h') timeRange = 7 * 24 * 3600; // 7 days for 1h
+                else if (currentInterval === '1d') timeRange = 90 * 24 * 3600; // 90 days for 1d
+                
+                const fromTimestamp = toTimestamp - timeRange;
+                // Always fetch 1-minute data from Zypher (only resolution they support)
+                const url = `${ZYPHER_API_URL}/tradingview/history?symbol=ZPHUSD&resolution=1&from=${fromTimestamp}&to=${toTimestamp}`;
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP Error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.s || data.s !== 'ok') {
+                    throw new Error(data.errmsg || 'Invalid Zypher response');
+                }
+                
+                if (data.t && data.t.length > 0) {
+                    const oneMinuteCandles = data.t.map((time, i) => ({
+                        time: time,
+                        open: parseFloat(data.o[i]),
+                        high: parseFloat(data.h[i]),
+                        low: parseFloat(data.l[i]),
+                        close: parseFloat(data.c[i])
+                    }));
+                    
+                    if (oneMinuteCandles.length > 0) {
+                        // Aggregate candles if interval is not 1m
+                        const candles = currentInterval === '1m' 
+                            ? oneMinuteCandles 
+                            : aggregateCandles(oneMinuteCandles, getIntervalSeconds());
+                        
+                        allCandles = candles;
+                        candlestickSeries.setData(candles);
+                        lastPrice = candles[candles.length - 1].close;
+                        chart.timeScale().fitContent();
+                    }
+                } else {
+                    console.warn('No Zypher candle data available');
+                }
+            } catch (error) {
+                console.error('Zypher error:', error.message);
             }
-            
-            // Use queued price for update
-            const priceToUse = queuedCandlePrice || price;
-            
-            // Cancel any pending candle update
-            if (pendingCandleUpdate) {
-                cancelAnimationFrame(pendingCandleUpdate);
-            }
-            
-            pendingCandleUpdate = requestAnimationFrame(() => {
-                performCandleUpdate(priceToUse);
-                pendingCandleUpdate = null;
-                lastCandleUpdate = Date.now();
-                queuedCandlePrice = null;
-            });
         }
         
-        function performCandleUpdate(price) {
-            const timestamp = Math.floor(Date.now() / 1000);
-            const currentMinuteStart = Math.floor(timestamp / 60) * 60;
+        function aggregateCandles(oneMinuteCandles, intervalSeconds) {
+            const aggregated = [];
+            const grouped = {};
+            
+            // Group 1-minute candles by the target interval
+            oneMinuteCandles.forEach(candle => {
+                const periodStart = Math.floor(candle.time / intervalSeconds) * intervalSeconds;
+                
+                if (!grouped[periodStart]) {
+                    grouped[periodStart] = [];
+                }
+                grouped[periodStart].push(candle);
+            });
+            
+            // Aggregate each group into a single candle
+            Object.keys(grouped).sort((a, b) => a - b).forEach(periodStart => {
+                const candlesInPeriod = grouped[periodStart];
+                
+                if (candlesInPeriod.length > 0) {
+                    aggregated.push({
+                        time: parseInt(periodStart),
+                        open: candlesInPeriod[0].open,
+                        high: Math.max(...candlesInPeriod.map(c => c.high)),
+                        low: Math.min(...candlesInPeriod.map(c => c.low)),
+                        close: candlesInPeriod[candlesInPeriod.length - 1].close
+                    });
+                }
+            });
+            
+            return aggregated;
+        }
 
-            if (!currentCandle || currentCandle.time !== currentMinuteStart) {
-                // New minute - create new candle
+        async function loadBinanceData() {
+            const symbol = PAIR_SYMBOL.replace('_', '').toUpperCase();
+            const binanceSymbol = symbol.endsWith('USD') && !symbol.endsWith('USDT') 
+                ? symbol.replace('USD', 'USDT') 
+                : symbol;
+            
+            const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${currentInterval}&limit=500`;
+            
+            try {
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP Error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.code) {
+                    // Binance error response
+                    throw new Error(data.msg || 'Binance API error');
+                }
+                
+                if (Array.isArray(data) && data.length > 0) {
+                    const candles = data.map(d => ({
+                        time: d[0] / 1000,
+                        open: parseFloat(d[1]),
+                        high: parseFloat(d[2]),
+                        low: parseFloat(d[3]),
+                        close: parseFloat(d[4])
+                    }));
+                    
+                    allCandles = candles;
+                    oldestTimestamp = candles[0].time;
+                    candlestickSeries.setData(allCandles);
+                    lastPrice = candles[candles.length - 1].close;
+                    chart.timeScale().fitContent();
+                } else {
+                    console.warn('No Binance candle data available');
+                }
+            } catch (error) {
+                console.error('Binance error:', error.message);
+            }
+        }
+
+        async function loadMoreBinanceData() {
+            if (isLoadingMore || !oldestTimestamp) return;
+            
+            isLoadingMore = true;
+            const symbol = PAIR_SYMBOL.replace('_', '').toUpperCase();
+            const binanceSymbol = symbol.endsWith('USD') && !symbol.endsWith('USDT') 
+                ? symbol.replace('USD', 'USDT') 
+                : symbol;
+            
+            const endTime = (oldestTimestamp * 1000) - 1;
+            const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${currentInterval}&limit=500&endTime=${endTime}`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (Array.isArray(data) && data.length > 0) {
+                    const newCandles = data.map(d => ({
+                        time: d[0] / 1000,
+                        open: parseFloat(d[1]),
+                        high: parseFloat(d[2]),
+                        low: parseFloat(d[3]),
+                        close: parseFloat(d[4])
+                    }));
+                    
+                    allCandles = [...newCandles, ...allCandles];
+                    oldestTimestamp = newCandles[0].time;
+                    candlestickSeries.setData(allCandles);
+                }
+            } catch (error) {
+                // Silently fail
+            } finally {
+                isLoadingMore = false;
+            }
+        }
+
+        function setupZypherConnection() {
+            if (typeof io === 'undefined') return;
+            
+            socket = io(ZYPHER_SOCKET_URL);
+            
+            socket.on('connect', () => {
+                socket.emit('subscribe', { symbol: 'ZPHUSD' });
+            });
+
+            socket.on('live_ohlc', (data) => {
+                if (data.symbol === 'ZPHUSD') {
+                    updateCandleFromOHLC(data);
+                    updatePriceDisplays(parseFloat(data.close));
+                }
+            });
+            
+            socket.on('price_update', (data) => {
+                if (data.symbol === 'ZPHUSD') {
+                    updateCandle(parseFloat(data.price));
+                    updatePriceDisplays(parseFloat(data.price));
+                }
+            });
+        }
+
+        function setupBinanceConnection() {
+            // Close existing connection if any
+            if (webSocket) {
+                webSocket.close();
+            }
+            
+            const symbol = PAIR_SYMBOL.replace('_', '').toLowerCase();
+            const binanceSymbol = symbol.endsWith('usd') && !symbol.endsWith('usdt') 
+                ? symbol.replace('usd', 'usdt') 
+                : symbol;
+            
+            const wsUrl = `wss://stream.binance.com:9443/ws/${binanceSymbol}@kline_${currentInterval}`;
+            
+            try {
+                webSocket = new WebSocket(wsUrl);
+                
+                webSocket.onopen = () => {
+                    console.log('Binance chart WebSocket connected');
+                };
+                
+                webSocket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.k) {
+                            const kline = data.k;
+                            updateCandleFromOHLC({
+                                open: parseFloat(kline.o),
+                                high: parseFloat(kline.h),
+                                low: parseFloat(kline.l),
+                                close: parseFloat(kline.c)
+                            });
+                            updatePriceDisplays(parseFloat(kline.c));
+                        }
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+                
+                webSocket.onerror = (error) => {
+                    console.error('Binance chart WebSocket error:', error);
+                };
+                
+                webSocket.onclose = () => {
+                    console.warn('Binance chart WebSocket closed, will reconnect on interval change');
+                };
+            } catch (error) {
+                console.error('Error creating Binance chart WebSocket:', error);
+            }
+        }
+
+        function getIntervalSeconds() {
+            const intervals = {
+                '1m': 60,
+                '5m': 300,
+                '15m': 900,
+                '1h': 3600,
+                '1d': 86400
+            };
+            return intervals[currentInterval] || 60;
+        }
+
+        function updateCandleFromOHLC(data) {
+            if (!candlestickSeries) return;
+            
+            const close = parseFloat(data.close);
+            const open = parseFloat(data.open) || close;
+            const high = parseFloat(data.high) || close;
+            const low = parseFloat(data.low) || close;
+            
+            if (isNaN(close) || !isFinite(close) || close <= 0 ||
+                isNaN(open) || !isFinite(open) || open <= 0 ||
+                isNaN(high) || !isFinite(high) || high <= 0 ||
+                isNaN(low) || !isFinite(low) || low <= 0) {
+                return;
+            }
+            
+            const timestamp = Math.floor(Date.now() / 1000);
+            const intervalSeconds = getIntervalSeconds();
+            const currentPeriodStart = Math.floor(timestamp / intervalSeconds) * intervalSeconds;
+
+            if (!currentCandle || currentCandle.time !== currentPeriodStart) {
                 currentCandle = {
-                    time: currentMinuteStart,
+                    time: currentPeriodStart,
+                    open: open,
+                    high: high,
+                    low: low,
+                    close: close
+                };
+            } else {
+                currentCandle = {
+                    time: currentPeriodStart,
+                    open: currentCandle.open,
+                    high: Math.max(currentCandle.high, high),
+                    low: Math.min(currentCandle.low, low),
+                    close: close
+                };
+            }
+            
+            if (currentCandle.open > 0 && currentCandle.high > 0 && 
+                currentCandle.low > 0 && currentCandle.close > 0) {
+                try {
+                    candlestickSeries.update(currentCandle);
+                } catch (error) {
+                    // Silently fail
+                }
+            }
+        }
+
+        function updateCandle(price) {
+            if (!candlestickSeries || !price || isNaN(price) || price <= 0) return;
+            
+            const timestamp = Math.floor(Date.now() / 1000);
+            const intervalSeconds = getIntervalSeconds();
+            const currentPeriodStart = Math.floor(timestamp / intervalSeconds) * intervalSeconds;
+
+            if (!currentCandle || currentCandle.time !== currentPeriodStart) {
+                currentCandle = {
+                    time: currentPeriodStart,
                     open: price,
                     high: price,
                     low: price,
                     close: price
                 };
             } else {
-                // Same minute - update existing candle (OHLC)
-                // Only update if values actually changed
-                const newHigh = Math.max(currentCandle.high, price);
-                const newLow = Math.min(currentCandle.low, price);
-                
-                // Skip update if nothing changed
-                if (currentCandle.close === price && 
-                    currentCandle.high === newHigh && 
-                    currentCandle.low === newLow) {
-                    return;
+                currentCandle.high = Math.max(currentCandle.high || price, price);
+                currentCandle.low = Math.min(currentCandle.low || price, price);
+                currentCandle.close = price;
+            }
+            
+            if (currentCandle.open > 0 && currentCandle.high > 0 && 
+                currentCandle.low > 0 && currentCandle.close > 0) {
+                try {
+                    candlestickSeries.update(currentCandle);
+                } catch (error) {
+                    // Silently fail
                 }
-                
-                currentCandle = {
-                    time: currentMinuteStart,
-                    open: currentCandle.open,  // Open stays the same
-                    high: newHigh,  // Track highest
-                    low: newLow,    // Track lowest
-                    close: price  // Current price
-                };
             }
-            
-            // Update chart smoothly
-            candlestickSeries.update(currentCandle);
-            updatePriceLine(price);
         }
-
-        function updatePriceLine(price) {
-            if (!candlestickSeries) return;
-            
-            // Remove old price line
-            if (priceLine) {
-                candlestickSeries.removePriceLine(priceLine);
-            }
-            
-            // Create new price line at current price
-            priceLine = candlestickSeries.createPriceLine({
-                price: price,
-                color: '#2196F3',
-                lineWidth: 1,
-                lineStyle: LightweightCharts.LineStyle.Dashed,
-                axisLabelVisible: true,
-                title: 'Current Price',
-            });
-        }
-
-        let lastDisplayedPrice = 0;
-        let pendingPriceUpdate = null;
-        let lastUpdateTime = 0;
-        let updateThrottle = 300; // Slower updates = smoother (300ms between updates)
-        let animatingPrice = false;
-        let targetPrice = 0;
 
         function updatePriceDisplays(price) {
-            // Store target price for smooth animation
-            targetPrice = price;
-            
-            // Throttle updates more aggressively for ultra-smooth feel
-            const now = Date.now();
-            if (now - lastUpdateTime < updateThrottle || animatingPrice) {
-                return;
-            }
-            
-            // Cancel any pending update
-            if (pendingPriceUpdate) {
-                cancelAnimationFrame(pendingPriceUpdate);
-            }
-            
-            pendingPriceUpdate = requestAnimationFrame(() => {
-                animatePriceTransition(lastDisplayedPrice, targetPrice);
-                pendingPriceUpdate = null;
-                lastUpdateTime = Date.now();
-            });
-        }
-        
-        // Smooth number animation (counts up/down like Quotex)
-        function animatePriceTransition(from, to) {
-            if (Math.abs(to - from) < 0.001 || from === 0) {
-                // Skip animation for tiny changes or first load
-                performPriceUpdate(to);
-                return;
-            }
-            
-            animatingPrice = true;
-            const duration = 250; // 250ms animation duration
-            const startTime = performance.now();
-            const difference = to - from;
-            
-            function animate(currentTime) {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                
-                // Easing function for smooth animation (ease-out)
-                const eased = 1 - Math.pow(1 - progress, 3);
-                const currentPrice = from + (difference * eased);
-                
-                performPriceUpdate(currentPrice, progress < 1);
-                
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    animatingPrice = false;
-                    lastDisplayedPrice = to;
-                }
-            }
-            
-            requestAnimationFrame(animate);
-        }
-
-        function performPriceUpdate(price, isAnimating = false) {
             const marketDataId = '{{ @$pair->marketData->id }}';
+            const displayPrice = price.toFixed(4);
             
-            // Format price with FIXED decimals (always same width)
-            const displayPrice = price.toFixed(4);  // Always 4 decimals - no flicker!
+            $('.market-price-' + marketDataId).text(displayPrice);
+            $('.order-book-price-all span').text(displayPrice);
+            $('.buy-rate, .sell-rate').filter(':not(:focus)').val(displayPrice);
+        }
+
+        function changeInterval(interval, zypherResolution) {
+            // Update current interval
+            currentInterval = interval;
+            currentZypherResolution = zypherResolution;
             
-            // Determine price direction (only when not animating)
-            let priceClass = '';
-            let priceIcon = '';
+            // Reset candle
+            currentCandle = null;
             
-            if (!isAnimating && lastDisplayedPrice > 0) {
-                if (price > lastDisplayedPrice) {
-                    priceClass = 'up text--success';
-                    priceIcon = '<i class="fas fa-arrow-up"></i>';
-                } else if (price < lastDisplayedPrice) {
-                    priceClass = 'down text--danger';
-                    priceIcon = '<i class="fas fa-arrow-down"></i>';
-                }
-            }
-            
-            // Batch all DOM updates in single animation frame
-            requestAnimationFrame(() => {
-                // Update main price display in header
-                const $priceElements = $('.market-price-' + marketDataId);
-                
-                // Only update if text actually changed
-                if ($priceElements.text() !== displayPrice) {
-                    $priceElements.text(displayPrice);
-                }
-                
-                if (priceClass) {
-                    $priceElements.removeClass('up down text--success text--danger').addClass(priceClass);
-                }
-                
-                // Update order book price (batched)
-                const $orderBookPrice = $('.order-book-price-all, .market-price-all');
-                $orderBookPrice.each(function() {
-                    const $this = $(this);
-                    const $span = $this.find('span').first();
-                    const target = $span.length ? $span : $this;
-                    
-                    if (target.text() !== displayPrice) {
-                        target.text(displayPrice);
-                    }
-                    
-                    if (priceClass) {
-                        $this.removeClass('up down text--success text--danger').addClass(priceClass);
-                    }
-                });
-                
-                // Update price icon (smooth transition)
-                if (priceIcon) {
-                    const $priceIcon = $('.price-icon-' + marketDataId);
-                    if ($priceIcon.html() !== priceIcon) {
-                        $priceIcon.html(priceIcon);
-                        $priceIcon.removeClass('up down text--success text--danger').addClass(priceClass);
-                    }
-                }
-                
-                // Update buy/sell form default prices (only if not focused and not animating)
-                if (!isAnimating) {
-                    $('.buy-rate').each(function() {
-                        if (!$(this).is(':focus') && $(this).val() !== displayPrice) {
-                            $(this).val(displayPrice);
-                        }
-                    });
-                    $('.sell-rate').each(function() {
-                        if (!$(this).is(':focus') && $(this).val() !== displayPrice) {
-                            $(this).val(displayPrice);
-                        }
-                    });
-                }
+            // Update button states
+            $('.interval-btn').removeClass('active').css({
+                'background': '#2B2B43',
+                'color': '#d1d4dc'
+            });
+            $(`.interval-btn[data-interval="${interval}"]`).addClass('active').css({
+                'background': '#2962ff',
+                'color': 'white'
             });
             
-            // Only update lastDisplayedPrice when not animating
-            if (!isAnimating) {
-                lastDisplayedPrice = price;
+            // Reload chart data
+            loadHistoricalData();
+            
+            // Reconnect WebSocket with new interval (only for Binance)
+            if (!IS_ZYPHER && webSocket) {
+                setupBinanceConnection();
             }
         }
 
-        function setupSocketIO() {
-            try {
-                // Use Socket.IO (not plain WebSocket!)
-                socket = io(ZYPHER_SOCKET_URL);
-                
-                socket.on('connect', () => {
-                    console.log('✅ Socket.IO connected to Zypher API');
-                    socket.emit('subscribe', { symbol: 'ZPHUSD' });
-                });
-
-                // Handle LIVE OHLC updates (tick-by-tick - updates every 1 second)
-                socket.on('live_ohlc', (data) => {
-                    if (data.symbol === 'ZPHUSD') {
-                        currentPrice = parseFloat(data.close);
-                        updateCandle(currentPrice);
-                        updatePriceDisplays(currentPrice);
-                        console.log('📊 Live OHLC tick:', currentPrice.toFixed(2), '| High:', parseFloat(data.high).toFixed(2), '| Low:', parseFloat(data.low).toFixed(2), '| (' + (data.timeRemaining || 0) + 's remaining)');
-                    }
-                });
-                
-                // Handle price updates (every 1 second - backup)
-                socket.on('price_update', (data) => {
-                    if (data.symbol === 'ZPHUSD') {
-                        currentPrice = parseFloat(data.price);
-                        updateCandle(currentPrice);
-                        updatePriceDisplays(currentPrice);
-                        console.log('💹 Price update:', currentPrice.toFixed(2), data.changePercent ? '(' + data.changePercent.toFixed(2) + '%)' : '');
-                    }
-                });
-                
-                // Handle completed candle updates (every 60 seconds)
-                socket.on('candle_update', (data) => {
-                    if (data.symbol === 'ZPHUSD') {
-                        console.log('✅ New candle completed at', parseFloat(data.c || data.close).toFixed(2));
-                        // The next live_ohlc will start a new candle automatically
-                    }
-                });
-
-                socket.on('disconnect', () => {
-                    console.log('🔌 Socket.IO disconnected from Zypher API');
-                });
-
-                socket.on('error', (error) => {
-                    console.error('❌ Socket.IO error:', error);
-                });
-
-            } catch (error) {
-                console.error('❌ Error setting up Socket.IO:', error);
-            }
-        }
-
-        // Polling fallback (every 1 second)
-        function startPricePolling() {
-            setInterval(async () => {
-                try {
-                    const response = await fetch(`${ZYPHER_API_URL}/tradingview/price`, {
-                        cache: 'no-cache'
-                    });
-                    const data = await response.json();
-                    if (data.success && data.data.symbol === 'ZPHUSD') {
-                        const newPrice = data.data.price;
-                        if (newPrice !== currentPrice) {
-                            currentPrice = newPrice;
-                            updateCandle(newPrice);
-                            updatePriceDisplays(newPrice);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Polling error:', error);
-                }
-            }, 1000);
-        }
-
-        // Add Binance WebSocket for non-ZPH pairs
-        function setupBinanceWebSocket() {
-            try {
-                let binanceSymbol = PAIR_SYMBOL.replace('_', '');
-                // Convert USD to USDT for Binance
-                if (binanceSymbol.toUpperCase().endsWith('USD') && !binanceSymbol.toUpperCase().endsWith('USDT')) {
-                    binanceSymbol = binanceSymbol.replace(/USD$/i, 'USDT');
-                }
-                
-                const wsUrl = `wss://stream.binance.com:9443/ws/${binanceSymbol.toLowerCase()}@kline_1m`;
-                
-                console.log('📡 Connecting to Binance WebSocket:', wsUrl);
-                webSocket = new WebSocket(wsUrl);
-                
-                webSocket.onopen = () => {
-                    console.log('✅ Connected to Binance WebSocket for', binanceSymbol);
-                };
-                
-                webSocket.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    if (data.k) {
-                        const candle = data.k;
-                        const price = parseFloat(candle.c);
-                        updateCandle(price);
-                        updatePriceDisplays(price);
-                    }
-                };
-                
-                webSocket.onerror = (error) => {
-                    console.error('❌ Binance WebSocket error:', error);
-                };
-                
-                webSocket.onclose = () => {
-                    console.log('🔌 Binance WebSocket disconnected');
-                    // Reconnect after 3 seconds
-                    setTimeout(() => {
-                        console.log('🔄 Reconnecting to Binance WebSocket...');
-                        setupBinanceWebSocket();
-                    }, 3000);
-                };
-            } catch (error) {
-                console.error('❌ Error setting up Binance WebSocket:', error);
-            }
-        }
-
-        function showNoDataMessage() {
-            const container = document.getElementById('trading-chart-container');
-            container.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #d1d4dc;">
-                    <div style="text-align: center;">
-                        <i class="fas fa-chart-line" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
-                        <p style="font-size: 16px; margin: 10px 0;">No chart data available</p>
-                        <p style="font-size: 14px; opacity: 0.7;">Waiting for market data...</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        function showErrorMessage(message) {
-            const container = document.getElementById('trading-chart-container');
-            container.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ef5350;">
-                    <div style="text-align: center; padding: 20px;">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
-                        <p style="font-size: 16px; margin: 10px 0; font-weight: bold;">Chart Error</p>
-                        <p style="font-size: 14px; opacity: 0.9; max-width: 400px;">${message}</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Initialize chart when page loads
         $(document).ready(function() {
-            initChart();
+            setTimeout(initChart, 100);
+            
+            // Handle interval button clicks
+            $('.interval-btn').on('click', function() {
+                const interval = $(this).data('interval');
+                const zypherResolution = $(this).data('zypher');
+                changeInterval(interval, zypherResolution.toString());
+            });
         });
 
-        // Cleanup on page unload
         $(window).on('beforeunload', function() {
-            if (socket) {
-                socket.disconnect();
-            }
-            if (webSocket) {
-                webSocket.close();
-            }
+            if (socket) socket.disconnect();
+            if (webSocket) webSocket.close();
         });
 
     })(jQuery);

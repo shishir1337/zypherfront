@@ -44,13 +44,6 @@
                         <span class="market-price-{{@$pair->marketData->id}} {{ @$pair->marketData->html_classes->price_change }}">
                             {{ showAmount(@$pair->marketData->price,currencyFormat:false) }}
                         </span>
-                        <span class="price-icon-{{@$pair->marketData->id}} {{ @$pair->marketData->html_classes->price_change }}">
-                            @if (@$pair->marketData->html_classes->price_change == 'up')
-                                <i class="fas fa-arrow-up"></i>
-                            @else
-                                <i class="fas fa-arrow-down"></i>
-                            @endif
-                        </span>
                     </h5>
                     <div class="trading-left__buy left-two ">
                         <div class="d-flex trading-left__header flex-between  buy-side-order-list-header d-xl-none">

@@ -4,7 +4,9 @@
 @endphp
 <div class="trading-right__bottom">
     <div class="trading-history">
-        <h5 class="trading-history__title"> @lang('Trade History') </h5>
+        <h5 class="trading-history__title"> @lang('Trade History') 
+            <span style="font-size: 11px; color: #999; font-weight: 400; margin-left: 8px;">(All Market Trades)</span>
+        </h5>
     </div>
     <div class="d-flex trading-market__header justify-content-between text-center">
         <div class="trading-market__header-two">

@@ -1,14 +1,39 @@
-Pusher.logToConsole = true;
+Pusher.logToConsole = false; // Disabled to reduce console noise
 
 const PUSHER_APP_KEY = window.atob(window.my_pusher.app_key);
 const PUSHER_CLUSTER = window.atob(window.my_pusher.app_cluster);
 const BASE_URL       = my_pusher.base_url;
 
-var pusher = new Pusher(PUSHER_APP_KEY, {
-    cluster: PUSHER_CLUSTER,
-});
+// Check if Pusher credentials are valid before initializing
+var pusher = null;
+if (PUSHER_APP_KEY && PUSHER_APP_KEY.length > 0 && PUSHER_APP_KEY !== 'null') {
+    try {
+        pusher = new Pusher(PUSHER_APP_KEY, {
+            cluster: PUSHER_CLUSTER,
+            enabledTransports: ['ws', 'wss'],
+            disabledTransports: ['sockjs', 'xhr_polling', 'xhr_streaming'],
+        });
+        
+        pusher.connection.bind('error', function(err) {
+            console.warn('⚠️ Pusher connection error (non-critical for ZPH pairs):', err.error?.data?.code || 'unknown');
+        });
+        
+        pusher.connection.bind('unavailable', function() {
+            console.warn('⚠️ Pusher unavailable (non-critical for ZPH pairs)');
+        });
+    } catch (error) {
+        console.warn('⚠️ Pusher initialization failed (non-critical for ZPH pairs):', error.message);
+    }
+} else {
+    console.warn('⚠️ Pusher credentials not configured (non-critical for ZPH pairs)');
+}
 
 const pusherConnection = (eventName, callback) => {
+    if (!pusher) {
+        console.warn('⚠️ Pusher not initialized, skipping subscription to:', eventName);
+        return;
+    }
+    
     pusher.connection.bind('connected', () => {
         const SOCKET_ID = pusher.connection.socket_id;
         const CHANNEL_NAME = `private-${eventName}`;

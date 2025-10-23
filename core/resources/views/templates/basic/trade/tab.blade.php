@@ -9,18 +9,10 @@
     <div class="@if($screen == 'small')  d-sm-block d-md-none @endif">
         <ul class="nav nav-pills  mb-3 custom--tab "
         id="pills-{{ $screen }}-tab-list" role="tablist">
-        @if ($screen == 'small')
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pills-{{ $screen }}-chart"
-                    type="button" role="tab" aria-controls="pills-chartthree" aria-selected="true">
-                    @lang('Chart')
-                </button>
-            </li>
-        @endif
         <li class="nav-item" role="presentation">
-            <button class="nav-link @if ($screen == 'medium') active @endif" data-bs-toggle="pill"
+            <button class="nav-link active" data-bs-toggle="pill"
                 data-bs-target="#pills-{{ $screen }}-order-book" type="button" role="tab"
-                aria-controls="pills-orderbookthree" aria-selected="false">
+                aria-controls="pills-orderbookthree" aria-selected="true">
                 @lang('Order Book')
             </button>
         </li>
@@ -41,12 +33,7 @@
     </div>
 
     <div class="tab-content">
-        @if ($screen == 'small')
-            <div class="tab-pane fade show active" id="pills-{{ $screen }}-chart" role="tabpanel">
-                <x-flexible-view :view="$activeTemplate . 'trade.chart'" :meta="['pair' => $pair, 'screen' => 'small']" />
-            </div>
-        @endif
-        <div class="tab-pane fade @if ($screen == 'medium') show active @endif"
+        <div class="tab-pane fade active"
             id="pills-{{ $screen }}-order-book" role="tabpanel">
             <x-flexible-view :view="$activeTemplate . 'trade.order_book'" :meta="['pair' => $pair, 'screen' => 'small']" />
         </div>
