@@ -126,6 +126,17 @@ Route::middleware('admin')->group(function () {
         Route::post('/status/{id?}', 'status')->name('status');
     });
 
+    // Zypher Control
+    Route::controller('ZypherController')->name('zypher.')->prefix('zypher')->group(function () {
+        Route::get('/status', 'status')->name('status');
+        Route::get('/manual', 'manual')->name('manual');
+        Route::post('/manual/apply', 'applyManualControl')->name('manual.apply');
+        Route::get('/mode', 'mode')->name('mode');
+        Route::post('/mode/update', 'updateMode')->name('mode.update');
+        Route::post('/start', 'start')->name('start');
+        Route::post('/stop', 'stop')->name('stop');
+    });
+
     // Users Manager
     Route::controller('ManageUsersController')->name('users.')->prefix('users')->group(function () {
         Route::get('/', 'allUsers')->name('all');

@@ -176,6 +176,49 @@
                 "Coin pair list"
             ]
         },
+        "zypher_control": {
+            "title": "Zypher Control",
+            "icon": "las la-chart-area",
+            "menu_active": "admin.zypher*",
+            "submenu": [
+                {
+                    "keyword": [
+                        "zypher status",
+                        "Zypher Control",
+                        "Trading status",
+                        "System status",
+                        "API status"
+                    ],
+                    "title": "System Status",
+                    "route_name": "admin.zypher.status",
+                    "menu_active": "admin.zypher.status"
+                },
+                {
+                    "keyword": [
+                        "manual control",
+                        "Zypher Control",
+                        "Price control",
+                        "Trading control",
+                        "Market manipulation"
+                    ],
+                    "title": "Manual Control",
+                    "route_name": "admin.zypher.manual",
+                    "menu_active": "admin.zypher.manual"
+                },
+                {
+                    "keyword": [
+                        "trading mode",
+                        "Zypher Control",
+                        "Auto mode",
+                        "Manual mode",
+                        "Mode switch"
+                    ],
+                    "title": "Trading Mode",
+                    "route_name": "admin.zypher.mode",
+                    "menu_active": "admin.zypher.mode"
+                }
+            ]
+        },
         "manage_users": {
             "title": "Manage Users",
             "icon": "las la-users",

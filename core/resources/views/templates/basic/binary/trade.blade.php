@@ -276,6 +276,13 @@
             let direction;
             let dataIds = [];
             let isTradeRunning = false;
+            
+            // Infinite scroll variables
+            let isLoadingMore = false;
+            let oldestTimestamp = null;
+            let hasMoreData = true;
+            let lastLoadTime = 0;
+            let lastLogicalRangeFrom = null;
             let incrementAmount = Number("{{ @$activeCoin->binary_increment_amount }}");
             let minTradeAmount = Number("{{ @$activeCoin->min_binary_trade_amount }}");
             let maxTradeAmount = Number("{{ @$activeCoin->max_binary_trade_amount }}");
@@ -573,6 +580,34 @@
                     if (tvLogo) {
                         tvLogo.style.display = 'none';
                     }
+                    
+                    // Setup infinite scroll listener
+                    chart.timeScale().subscribeVisibleLogicalRangeChange((logicalRange) => {
+                        if (!logicalRange) return;
+                        
+                        const now = Date.now();
+                        
+                        // Safeguards to prevent infinite loop
+                        if (!isLoadingMore && 
+                            hasMoreData && 
+                            (now - lastLoadTime > 1000) && // Cooldown: 1 second between loads
+                            logicalRange.from < 10 && // Near the left edge
+                            (lastLogicalRangeFrom === null || logicalRange.from < lastLogicalRangeFrom)) {
+                            
+                            lastLogicalRangeFrom = logicalRange.from;
+                            lastLoadTime = now;
+                            
+                            console.log('📥 Binary: Loading more data (scrolled to left edge)...');
+                            
+                            // Load more data based on coin type
+                            if (activeCoin.toUpperCase().includes('ZPH')) {
+                                loadMoreZypherData();
+                            } else if (BINANCE_API_URL) {
+                                loadMoreBinanceData();
+                            }
+                        }
+                    });
+                    
                     loadHistoricalData();
                     initializeWebSocket();
                     setupDirectionIndicators();
@@ -597,7 +632,7 @@
                     let candleData = [];
                     
                     if (data.s === 'ok' && data.t && data.c) {
-                        // Zypher format
+                        // Zypher format - with validation and duplicate removal
                         candleData = data.t.map((time, i) => ({
                             time: time,
                             open: parseFloat(data.o[i]),
@@ -605,6 +640,32 @@
                             low: parseFloat(data.l[i]),
                             close: parseFloat(data.c[i])
                         }));
+                        
+                        // Filter invalid candles (null, NaN, negative, zero values)
+                        candleData = candleData.filter(candle => {
+                            return candle && candle.time > 0 &&
+                                   candle.open > 0 && !isNaN(candle.open) && isFinite(candle.open) &&
+                                   candle.high > 0 && !isNaN(candle.high) && isFinite(candle.high) &&
+                                   candle.low > 0 && !isNaN(candle.low) && isFinite(candle.low) &&
+                                   candle.close > 0 && !isNaN(candle.close) && isFinite(candle.close);
+                        });
+                        
+                        // Remove duplicate timestamps (Zypher API bug)
+                        const uniqueCandles = [];
+                        const seenTimes = new Set();
+                        for (const candle of candleData) {
+                            if (!seenTimes.has(candle.time)) {
+                                seenTimes.add(candle.time);
+                                uniqueCandles.push(candle);
+                            }
+                        }
+                        
+                        if (uniqueCandles.length < candleData.length) {
+                            console.warn('⚠️ Binary: Removed', candleData.length - uniqueCandles.length, 'duplicate timestamps');
+                        }
+                        
+                        candleData = uniqueCandles;
+                        console.log('✅ Binary: Loaded', candleData.length, 'valid candles');
                     } else if (Array.isArray(data)) {
                         // Binance format
                         candleData = data.map(d => ({
@@ -614,6 +675,15 @@
                             low: parseFloat(d[3]),
                             close: parseFloat(d[4])
                         }));
+                        
+                        // Filter invalid Binance candles
+                        candleData = candleData.filter(candle => {
+                            return candle && candle.time > 0 &&
+                                   candle.open > 0 && !isNaN(candle.open) && isFinite(candle.open) &&
+                                   candle.high > 0 && !isNaN(candle.high) && isFinite(candle.high) &&
+                                   candle.low > 0 && !isNaN(candle.low) && isFinite(candle.low) &&
+                                   candle.close > 0 && !isNaN(candle.close) && isFinite(candle.close);
+                        });
                     } else if (data.code) {
                         // Binance error response
                         console.error('Binance API Error:', data.msg);
@@ -628,6 +698,7 @@
                     if (candleData.length > 0) {
                         candlestickSeries.setData(candleData);
                         lastPrice = candleData[candleData.length - 1].close;
+                        oldestTimestamp = candleData[0].time; // Track oldest timestamp for infinite scroll
                         chart.timeScale().fitContent();
                     } else {
                         console.warn('No candle data received');
@@ -636,6 +707,188 @@
                     console.error('Binary data error:', error.message);
                     notify('error', 'Chart data load failed. Retrying in 3 seconds...');
                     setTimeout(loadHistoricalData, 3000);
+                }
+            }
+            
+            // Load more Binance data (infinite scroll)
+            async function loadMoreBinanceData() {
+                if (isLoadingMore || !hasMoreData || !BINANCE_API_URL || !oldestTimestamp) return;
+                
+                isLoadingMore = true;
+                console.log('📥 Binary Binance: Loading more data...');
+                
+                try {
+                    // Calculate time range for more data (500 candles = ~8.3 hours for 1m)
+                    const interval = '1m';
+                    const endTime = oldestTimestamp * 1000; // Convert to milliseconds
+                    const startTime = endTime - (500 * 60 * 1000); // 500 minutes back
+                    
+                    // Build URL for older data
+                    const url = `https://api.binance.com/api/v3/klines?symbol=${activeCoin.replace('_', '')}&interval=${interval}&startTime=${startTime}&endTime=${endTime}&limit=500`;
+                    
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        console.error('Binary Binance: Failed to load more data');
+                        hasMoreData = false;
+                        isLoadingMore = false;
+                        return;
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.length === 0) {
+                        console.log('📭 Binary Binance: No more data available');
+                        hasMoreData = false;
+                        isLoadingMore = false;
+                        return;
+                    }
+                    
+                    // Parse new candles
+                    const newCandles = data.map(d => ({
+                        time: d[0] / 1000,
+                        open: parseFloat(d[1]),
+                        high: parseFloat(d[2]),
+                        low: parseFloat(d[3]),
+                        close: parseFloat(d[4])
+                    }));
+                    
+                    // Filter invalid candles
+                    const validNewCandles = newCandles.filter(candle => {
+                        return candle && candle.time > 0 &&
+                               candle.open > 0 && !isNaN(candle.open) && isFinite(candle.open) &&
+                               candle.high > 0 && !isNaN(candle.high) && isFinite(candle.high) &&
+                               candle.low > 0 && !isNaN(candle.low) && isFinite(candle.low) &&
+                               candle.close > 0 && !isNaN(candle.close) && isFinite(candle.close);
+                    });
+                    
+                    if (validNewCandles.length > 0) {
+                        // Get existing data
+                        const existingData = candlestickSeries.data() || [];
+                        
+                        // Merge: new data + existing data
+                        const mergedData = [...validNewCandles, ...existingData];
+                        
+                        // Update chart
+                        candlestickSeries.setData(mergedData);
+                        
+                        // Update oldest timestamp
+                        oldestTimestamp = validNewCandles[0].time;
+                        
+                        console.log(`✅ Binary Binance: Loaded ${validNewCandles.length} more candles`);
+                    }
+                } catch (error) {
+                    console.error('Binary Binance: Error loading more data:', error);
+                } finally {
+                    isLoadingMore = false;
+                }
+            }
+            
+            // Load more Zypher data (infinite scroll)
+            async function loadMoreZypherData() {
+                if (isLoadingMore || !hasMoreData || !oldestTimestamp) return;
+                
+                isLoadingMore = true;
+                console.log('📥 Binary Zypher: Loading more data...');
+                
+                try {
+                    // Calculate time range (2 hours = 120 candles for 1m)
+                    const chunkSize = 2 * 60 * 60; // 2 hours in seconds
+                    const to = oldestTimestamp - 1; // Just before oldest
+                    const from = to - chunkSize;
+                    
+                    const url = `https://zypher.bigbuller.com/api/tradingview/history?symbol=ZPHUSD&resolution=1&from=${from}&to=${to}`;
+                    
+                    console.log('📥 Binary Zypher: Fetching from', new Date(from * 1000), 'to', new Date(to * 1000));
+                    
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        console.error('Binary Zypher: Failed to load more data');
+                        hasMoreData = false;
+                        isLoadingMore = false;
+                        return;
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.s !== 'ok' || !data.t || data.t.length === 0) {
+                        console.log('📭 Binary Zypher: No more data available');
+                        hasMoreData = false;
+                        isLoadingMore = false;
+                        return;
+                    }
+                    
+                    // Parse new candles
+                    let newCandles = data.t.map((time, i) => ({
+                        time: time,
+                        open: parseFloat(data.o[i]),
+                        high: parseFloat(data.h[i]),
+                        low: parseFloat(data.l[i]),
+                        close: parseFloat(data.c[i])
+                    }));
+                    
+                    // Filter invalid candles
+                    newCandles = newCandles.filter(candle => {
+                        return candle && candle.time > 0 &&
+                               candle.open > 0 && !isNaN(candle.open) && isFinite(candle.open) &&
+                               candle.high > 0 && !isNaN(candle.high) && isFinite(candle.high) &&
+                               candle.low > 0 && !isNaN(candle.low) && isFinite(candle.low) &&
+                               candle.close > 0 && !isNaN(candle.close) && isFinite(candle.close);
+                    });
+                    
+                    // Remove duplicate timestamps
+                    const uniqueNewCandles = [];
+                    const seenTimes = new Set();
+                    for (const candle of newCandles) {
+                        if (!seenTimes.has(candle.time)) {
+                            seenTimes.add(candle.time);
+                            uniqueNewCandles.push(candle);
+                        }
+                    }
+                    
+                    if (uniqueNewCandles.length < newCandles.length) {
+                        console.warn('⚠️ Binary Zypher: Removed', newCandles.length - uniqueNewCandles.length, 'duplicate timestamps');
+                    }
+                    
+                    if (uniqueNewCandles.length > 0) {
+                        // Get existing data
+                        const existingData = candlestickSeries.data() || [];
+                        
+                        // Merge: new data + existing data
+                        let mergedData = [...uniqueNewCandles, ...existingData];
+                        
+                        // Remove duplicates from merged array (can happen at boundaries)
+                        const uniqueMerged = [];
+                        const seenMergedTimes = new Set();
+                        for (const candle of mergedData) {
+                            if (!seenMergedTimes.has(candle.time)) {
+                                seenMergedTimes.add(candle.time);
+                                uniqueMerged.push(candle);
+                            }
+                        }
+                        
+                        // Final validation
+                        const validCandles = uniqueMerged.filter(candle => {
+                            return candle && candle.time > 0 &&
+                                   candle.open > 0 && !isNaN(candle.open) && isFinite(candle.open) &&
+                                   candle.high > 0 && !isNaN(candle.high) && isFinite(candle.high) &&
+                                   candle.low > 0 && !isNaN(candle.low) && isFinite(candle.low) &&
+                                   candle.close > 0 && !isNaN(candle.close) && isFinite(candle.close);
+                        });
+                        
+                        // Update chart
+                        candlestickSeries.setData(validCandles);
+                        
+                        // Update oldest timestamp
+                        oldestTimestamp = uniqueNewCandles[0].time;
+                        
+                        console.log(`✅ Binary Zypher: Loaded ${uniqueNewCandles.length} more candles (${validCandles.length} total)`);
+                    }
+                } catch (error) {
+                    console.error('Binary Zypher: Error loading more data:', error);
+                } finally {
+                    isLoadingMore = false;
                 }
             }
 
@@ -723,23 +976,42 @@
                     
                     socketIO.on('live_ohlc', (data) => {
                         if (data.symbol === 'ZPHUSD') {
-                            updateCandle({
-                                open: parseFloat(data.open),
-                                high: parseFloat(data.high),
-                                low: parseFloat(data.low),
-                                close: parseFloat(data.close),
-                                volume: parseFloat(data.volume || 0)
-                            });
-                            lastPrice = parseFloat(data.close);
-                            updatePriceDot(lastPrice);
+                            // Validate OHLC data before updating
+                            const open = parseFloat(data.open);
+                            const high = parseFloat(data.high);
+                            const low = parseFloat(data.low);
+                            const close = parseFloat(data.close);
+                            
+                            if (open > 0 && high > 0 && low > 0 && close > 0 &&
+                                !isNaN(open) && !isNaN(high) && !isNaN(low) && !isNaN(close) &&
+                                isFinite(open) && isFinite(high) && isFinite(low) && isFinite(close)) {
+                                updateCandle({
+                                    open: open,
+                                    high: high,
+                                    low: low,
+                                    close: close,
+                                    volume: parseFloat(data.volume || 0)
+                                });
+                                lastPrice = close;
+                                updatePriceDot(lastPrice);
+                            } else {
+                                console.warn('⚠️ Binary: Invalid live_ohlc data filtered:', data);
+                            }
                         }
                     });
                     
                     socketIO.on('price_update', (data) => {
                         if (data.symbol === 'ZPHUSD') {
-                            updateCandleFromPrice(parseFloat(data.price));
-                            lastPrice = parseFloat(data.price);
-                            updatePriceDot(lastPrice);
+                            const price = parseFloat(data.price);
+                            
+                            // Validate price before updating
+                            if (price > 0 && !isNaN(price) && isFinite(price)) {
+                                updateCandleFromPrice(price);
+                                lastPrice = price;
+                                updatePriceDot(lastPrice);
+                            } else {
+                                console.warn('⚠️ Binary: Invalid price_update filtered:', data);
+                            }
                         }
                     });
                     

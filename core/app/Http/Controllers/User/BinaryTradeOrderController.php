@@ -76,16 +76,20 @@ class BinaryTradeOrderController extends Controller {
         if ($isZypher) {
             // Use Zypher API for ZPH pairs
             try {
-                $response = Http::timeout(5)->get(env('ZYPHER_API_URL', 'https://zypher.bigbuller.com/api') . '/tradingview/price');
+                $response = Http::withOptions(['verify' => false])->timeout(10)->get(env('ZYPHER_API_URL', 'https://zypher.bigbuller.com/api') . '/tradingview/price');
                 
                 if (!$response->successful()) {
-                    return response()->json(['error' => 'Failed to get ZPH price. Please ensure Zypher API is running.']);
+                    return response()->json(['error' => 'Failed to get ZPH price from Zypher API.']);
                 }
                 
                 $data = $response->json();
                 $currentPrice = $data['data']['price'] ?? null;
             } catch (\Exception $e) {
-                return response()->json(['error' => 'Zypher API connection failed. Please check if API server is running on port 3001.']);
+                \Log::error('Binary Trade - Zypher API Error', [
+                    'error' => $e->getMessage(),
+                    'url' => env('ZYPHER_API_URL', 'https://zypher.bigbuller.com/api')
+                ]);
+                return response()->json(['error' => 'Zypher API connection failed: ' . $e->getMessage()]);
             }
         } else {
             // Use Binance API for other pairs
@@ -164,20 +168,24 @@ class BinaryTradeOrderController extends Controller {
         if ($isZypher) {
             // Use Zypher API for ZPH pairs
             try {
-                $response = Http::timeout(5)->get(env('ZYPHER_API_URL', 'https://zypher.bigbuller.com/api') . '/tradingview/price');
+                $response = Http::withOptions(['verify' => false])->timeout(10)->get(env('ZYPHER_API_URL', 'https://zypher.bigbuller.com/api') . '/tradingview/price');
                 
                 if (!$response->successful()) {
                     $binaryTrade->status = Status::ENABLE;
                     $binaryTrade->save();
-                    return response()->json(['error' => 'Failed to get ZPH result price']);
+                    return response()->json(['error' => 'Failed to get ZPH result price from Zypher API']);
                 }
                 
                 $data = $response->json();
                 $currentPrice = $data['data']['price'] ?? null;
             } catch (\Exception $e) {
+                \Log::error('Binary Trade Complete - Zypher API Error', [
+                    'error' => $e->getMessage(),
+                    'trade_id' => $binaryTrade->id
+                ]);
                 $binaryTrade->status = Status::ENABLE;
                 $binaryTrade->save();
-                return response()->json(['error' => 'Zypher API connection failed']);
+                return response()->json(['error' => 'Zypher API connection failed: ' . $e->getMessage()]);
             }
         } else {
             // Use Binance API for other pairs
