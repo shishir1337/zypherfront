@@ -2,7 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 
-
+/*
+// P2P ROUTES DISABLED - Feature removed from platform
 Route::namespace('User\P2P')->group(function () {
     Route::get('/', "HomeController@index")->name('dashboard');
     Route::get('/feedback/list', "HomeController@feedbackList")->name('feedback.list');
@@ -40,3 +41,4 @@ Route::namespace('User\P2P')->group(function () {
         });
     });
 });
+*/

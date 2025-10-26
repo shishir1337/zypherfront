@@ -31,12 +31,6 @@
                     <span class="text">@lang('Binary Trade History')</span>
                 </a>
             </li>
-            <li class="sidebar-menu-list__item ">
-                <a href="{{ route('user.p2p.dashboard') }}" class="sidebar-menu-list__link {{ menuActive('user.p2p.dashboard') }} ">
-                    <span class="icon"><span class="icon-trade"></span></span>
-                    <span class="text">@lang('P2P Center')</span>
-                </a>
-            </li>
 
             <li class="sidebar-menu-list__item ">
                 <a href="{{ route('user.wallet.list', 'spot') }}" class="sidebar-menu-list__link {{ menuActive('user.wallet.*') }}">

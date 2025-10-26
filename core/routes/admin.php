@@ -64,6 +64,8 @@ Route::middleware('admin')->group(function () {
         Route::get('lose', 'lose')->name('lose');
     });
 
+    /*
+    // P2P ADMIN ROUTES DISABLED - Feature removed from platform
     //manage p2p
     Route::namespace("P2P")->prefix('p2p')->name('p2p.')->group(function () {
         Route::controller('PaymentMethodController')->name('payment.method.')->prefix('payment-method')->group(function () {
@@ -90,6 +92,7 @@ Route::middleware('admin')->group(function () {
             Route::get('{scope}', 'index')->name('index');
         });
     });
+    */
 
     // Currency Manager
     Route::controller('CurrencyController')->name('currency.')->prefix('currency')->group(function () {

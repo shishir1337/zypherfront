@@ -37,12 +37,15 @@ Route::controller("TradeController")->prefix('trade')->group(function () {
     Route::get('/{symbol?}', 'trade')->name('trade');
 });
 
+/*
+// P2P ROUTES DISABLED - Feature removed from platform
 Route::namespace('P2P')->group(function () {
     Route::controller("HomeController")->prefix('p2p')->group(function () {
         Route::get("/advertiser/{username}", 'advertiser')->name('p2p.advertiser');
         Route::get("/{type?}/{coin?}/{currency?}/{paymentMethod?}/{region?}/{amount?}", 'p2p')->name('p2p');
     });
 });
+*/
 
 Route::controller('SiteController')->group(function () {
     Route::get('/pwa/configuration', 'pwaConfiguration')->name('pwa.configuration');

@@ -63,11 +63,14 @@ class AdminController extends Controller {
         $widget['withdraw']['currency_count']  = (clone $withdraw)->selectRaw('*,count(*) as count')->orderBy('count', 'DESC')->get()->plucK('count');
         $widget['withdraw']['currency_symbol'] = (clone $withdraw)->selectRaw('*,count(*) as count')->orderBy('count', 'DESC')->get()->plucK('withdrawCurrency.symbol');
 
+        // P2P WIDGET DATA DISABLED - Feature removed from platform
+        /*
         $p2pTrade                         = P2PTrade::query();
         $widget['p2p']['total_trade']     = (clone $p2pTrade)->count();
         $widget['p2p']['running_trade']   = (clone $p2pTrade)->running()->count();
         $widget['p2p']['completed_trade'] = (clone $p2pTrade)->completed()->count();
         $widget['p2p']['total_ad']        = Ad::count();
+        */
 
         // user Browsing, Country, Operating Log
         $userLoginData = UserLogin::where('created_at', '>=', Carbon::now()->subDays(30))->get(['browser', 'os', 'country']);

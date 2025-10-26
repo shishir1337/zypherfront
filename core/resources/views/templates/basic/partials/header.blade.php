@@ -80,17 +80,6 @@
                                             </span>
                                         </a>
                                     </li>
-                                    <li class="mega-menu-list__item mega-item-bg2">
-                                        <a href="{{ route('p2p') }}" class="mega-menu-list__link">
-                                            <div class="mega-menu-list__content">
-                                                <span class="mega-menu-list__title">@lang('P2P')</span>
-                                                <p class="mega-menu-list__desc">@lang('Buy & sell crypto with your preferred payment methods.')</p>
-                                            </div>
-                                            <span class="mega-menu-list__icon">
-                                                <img class="fit-image" src="{{ getImage('assets/images/extra_images/p2p.png', null) }}">
-                                            </span>
-                                        </a>
-                                    </li>
                                     <li class="mega-menu-list__item mega-item-bg3">
                                         <a href="{{ route('binary') }}" class="mega-menu-list__link">
                                             <div class="mega-menu-list__content">

@@ -39,7 +39,8 @@
     </div>
 
     <div class="row mb-none-30 mb-3 align-items-center gy-4">
-        <div class="col-xxl-3 col-sm-6">
+        {{-- P2P WIDGETS DISABLED - Feature removed from platform --}}
+        {{-- <div class="col-xxl-3 col-sm-6">
             <x-widget style="6" link="{{ route('admin.p2p.trade.index', 'running') }}" icon="fas fa-spinner" title="P2P Running Trade"
                 value="{{ $widget['p2p']['running_trade'] }}" bg="warning" />
         </div>
@@ -54,7 +55,7 @@
         <div class="col-xxl-3 col-sm-6">
             <x-widget style="6" link="{{ route('admin.p2p.ad.index') }}" icon="las la-ad" title="P2P Total Ad"
                 value="{{ $widget['p2p']['total_ad'] }}" bg="primary" />
-        </div>
+        </div> --}}
     </div>
 
     <div class="row mb-none-30 mb-3 gy-4">

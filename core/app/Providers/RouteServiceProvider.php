@@ -52,10 +52,13 @@ class RouteServiceProvider extends ServiceProvider
                     ->prefix('user')
                     ->group(base_path('routes/user.php'));
 
+                /*
+                // P2P ROUTES DISABLED - Feature removed from platform
                 Route::middleware(['web','maintenance','auth'])
                     ->prefix('user/p2p')
                     ->name('user.p2p.')
                     ->group(base_path('routes/p2p.php'));
+                */
 
                 Route::middleware(['web','maintenance'])
                     ->group(base_path('routes/web.php'));
