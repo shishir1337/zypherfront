@@ -72,6 +72,15 @@ class CronController extends Controller {
 
     public function crypto() {
         try {
+            // Update ZPH using ZypherAPI
+            $zypherProvider = \App\Models\CurrencyDataProvider::where('alias', 'ZypherAPI')->first();
+            if ($zypherProvider) {
+                $zypherInstance = new \App\Lib\CurrencyDataProvider\ZypherAPI();
+                $zypherInstance->provider = $zypherProvider;
+                $zypherInstance->updateCryptoPrice();
+            }
+            
+            // Update other cryptos using default provider
             return defaultCurrencyDataProvider()->updateCryptoPrice();
         } catch (Exception $ex) {
             throw new \Exception($ex->getMessage());
@@ -80,6 +89,15 @@ class CronController extends Controller {
 
     public function market() {
         try {
+            // Update ZPH using ZypherAPI
+            $zypherProvider = \App\Models\CurrencyDataProvider::where('alias', 'ZypherAPI')->first();
+            if ($zypherProvider) {
+                $zypherInstance = new \App\Lib\CurrencyDataProvider\ZypherAPI();
+                $zypherInstance->provider = $zypherProvider;
+                $zypherInstance->updateCryptoPrice();
+            }
+            
+            // Update BTC/ETH/etc using default provider
             return defaultCurrencyDataProvider()->updateMarkets();
         } catch (Exception $ex) {
             throw new \Exception($ex->getMessage());

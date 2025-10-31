@@ -1,7 +1,7 @@
 <header class="header" id="header">
     <div class="container">
         <nav class="navbar navbar-expand-lg navbar-light">
-            <a class="navbar-brand logo" href="{{ route('home') }}">
+            <a class="navbar-brand logo" href="@auth {{ route('user.home') }} @else {{ route('home') }} @endauth">
                 <img src="{{ siteLogo() }}">
             </a>
             <button class="navbar-toggler header-button" type="button" data-bs-toggle="collapse"

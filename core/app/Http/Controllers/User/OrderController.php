@@ -95,9 +95,21 @@ class OrderController extends Controller {
 
         $amount = $request->amount;
         if ($request->order_type == Status::ORDER_TYPE_MARKET) {
+            // Validate market data exists and has valid price
+            if (!$pair->marketData) {
+                return $this->response('Market data is not available for this pair. Please try again later.');
+            }
+            if ($pair->marketData->price <= 0) {
+                return $this->response('Market price is currently unavailable. Please try again in a moment.');
+            }
             $rate = $pair->marketData->price;
         } else {
             $rate = $request->rate;
+        }
+
+        // Additional validation: ensure rate is always positive
+        if ($rate <= 0) {
+            return $this->response('Invalid price rate. Please check and try again.');
         }
 
         $totalAmount    = $amount * $rate;

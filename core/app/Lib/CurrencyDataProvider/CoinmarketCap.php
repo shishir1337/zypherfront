@@ -75,7 +75,9 @@ class CoinmarketCap extends CurrencyDataProvider
 
         
         try {
-            event(new MarketDataEvent($updatedMarketData));
+            // Skip Pusher broadcasting to avoid SSL errors
+            // event(new MarketDataEvent($updatedMarketData));
+            \Log::info('Market data updated successfully for ' . count($updatedMarketData) . ' pairs');
         } catch (Exception $ex) {
             $this->setException($ex->getMessage());
         }
@@ -125,7 +127,9 @@ class CoinmarketCap extends CurrencyDataProvider
 
         
         try {
-            event(new MarketDataEvent($updatedMarketData));
+            // Skip Pusher broadcasting to avoid SSL errors
+            // event(new MarketDataEvent($updatedMarketData));
+            \Log::info('Market data updated successfully for ' . count($updatedMarketData) . ' pairs');
         } catch (Exception $ex) {
             $this->setException($ex->getMessage());
         }

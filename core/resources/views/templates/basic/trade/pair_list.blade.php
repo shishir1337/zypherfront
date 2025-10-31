@@ -43,9 +43,6 @@
         <div class="trading-market__header-three trading-market__header--price ">
             @lang('Price')
         </div>
-        <div class="trading-market__header-two">
-            @lang('Change')
-        </div>
     </div>
     <div class="tab-content" id="pills-tabContentsixteen">
         <div class="tab-pane fade show active" id="pills-margin1" role="tabpanel" aria-labelledby="pills-margin1-tab"
@@ -163,11 +160,6 @@
                                                 <li class=" market__change-item ">
                                                     <span class="market-price-${marketData.id} ${htmlClasses ? htmlClasses.price_change : ''}">
                                                         ${showAmount(marketData.price)}
-                                                    </span>
-                                                </li>
-                                                <li class="market__price-item ">
-                                                    <span class="market-percent-change-1h-${marketData.id} ${htmlClasses ?  htmlClasses.percent_change_1h : ''}">
-                                                        ${showAmount(marketData.percent_change_1h,2)}%
                                                     </span>
                                                 </li>
                                             </ul>`;

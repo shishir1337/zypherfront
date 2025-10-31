@@ -14,30 +14,6 @@
                 </span>
             </p>
         </div>
-        <div>
-            <span class="text--base fs-12">@lang('Last Price')</span>
-            <p class="trading-header-number market-last-price-{{ @$pair->marketData->id }} ">
-                {{ showAmount(@$pair->marketData->last_price,currencyFormat:false) }}</p>
-        </div>
-        <div>
-            <span class="text--base fs-12"> @lang('1H Change') </span>
-            <p class="trading-header__number ">
-                <span
-                    class="market-percent-change-1h-{{ @$pair->marketData->id }} {{ @$pair->marketData->html_classes->percent_change_1h }}">
-                    {{ getAmount(@$pair->marketData->percent_change_1h, 2) }}%
-                </span>
-            </p>
-        </div>
-        <div>
-            <span class="text--base fs-12"> @lang('24H Change') </span>
-            <p class="trading-header__number {{ @$pair->marketData->html_classes->percent_change_24h }}">
-                {{ getAmount(@$pair->marketData->percent_change_24h, 2) }}%
-            </p>
-        </div>
-        <div>
-            <span class="text--base fs-12">@lang('Marketcap')</span>
-            <p class="trading-header__number"> {{ showAmount(@$pair->marketData->market_cap,currencyFormat:false) }} </p>
-        </div>
     </div>
 </div>
 

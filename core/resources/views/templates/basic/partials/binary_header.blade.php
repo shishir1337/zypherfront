@@ -1,7 +1,7 @@
 <header class="header-new">
     <div class="container-fluid container-fluid--custom">
         <div class="header-new__wrapper">
-            <a class="header-new-logo" href="{{ route('home') }}">
+            <a class="header-new-logo" href="@auth {{ route('user.home') }} @else {{ route('home') }} @endauth">
                 <img src="{{ siteLogo() }}" alt="">
             </a>
 

@@ -7,10 +7,7 @@
                 <x-flexible-view :view="$activeTemplate . 'trade.pair'" :meta="['pair' => $pair, 'screen' => 'small']" />
                 <div class="col-xl-9">
                     <div class="row gy-2">
-                        <div class="col-xl-4 pe-lg-1">
-                            <x-flexible-view :view="$activeTemplate . 'trade.order_book'" :meta="['pair' => $pair, 'screen' => 'big']" />
-                        </div>
-                        <div class="col-xl-8 col-md-7">
+                        <div class="col-xl-12 col-md-7">
                             <x-flexible-view :view="$activeTemplate . 'trade.pair'" :meta="['pair' => $pair]" />
                             <x-flexible-view :view="$activeTemplate . 'trade.chart'" :meta="['pair' => $pair]" />
                             <x-flexible-view :view="$activeTemplate . 'trade.buy_sell'" :meta="[

@@ -11,7 +11,7 @@
                 <div class="col-sm-6 col-xl-6">
                     <div class="footer-item">
                         <div class="footer-item__logo">
-                            <a href="{{ route('home') }}">
+                            <a href="@auth {{ route('user.home') }} @else {{ route('home') }} @endauth">
                                 <img src="{{ siteLogo() }}">
                             </a>
                         </div>

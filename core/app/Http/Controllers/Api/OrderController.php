@@ -133,7 +133,39 @@ class OrderController extends Controller {
         }
 
         $amount      = $request->amount;
+        
+        // Validate market data for market orders
+        if ($request->order_type == Status::ORDER_TYPE_MARKET) {
+            if (!$pair->marketData) {
+                $notify[] = 'Market data is not available for this pair. Please try again later.';
+                return response()->json([
+                    'remark'  => 'validation_error',
+                    'status'  => 'error',
+                    'message' => ['error' => $notify],
+                ]);
+            }
+            if ($pair->marketData->price <= 0) {
+                $notify[] = 'Market price is currently unavailable. Please try again in a moment.';
+                return response()->json([
+                    'remark'  => 'validation_error',
+                    'status'  => 'error',
+                    'message' => ['error' => $notify],
+                ]);
+            }
+        }
+        
         $rate        = $request->order_type == Status::ORDER_TYPE_LIMIT ? $request->rate : $pair->marketData->price;
+        
+        // Additional validation: ensure rate is always positive
+        if ($rate <= 0) {
+            $notify[] = 'Invalid price rate. Please check and try again.';
+            return response()->json([
+                'remark'  => 'validation_error',
+                'status'  => 'error',
+                'message' => ['error' => $notify],
+            ]);
+        }
+        
         $totalAmount = $amount * $rate;
 
         $coin           = $pair->coin;

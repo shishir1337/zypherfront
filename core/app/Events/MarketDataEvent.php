@@ -22,7 +22,12 @@ class MarketDataEvent implements ShouldBroadcastNow
 
     public function __construct($marketData)
     {
-        configBroadcasting();
+        try {
+            configBroadcasting();
+        } catch (\Exception $e) {
+            // Pusher configuration failed, but continue anyway
+            \Log::warning('Pusher configuration failed: ' . $e->getMessage());
+        }
         $this->marketData = $marketData;
     }
 

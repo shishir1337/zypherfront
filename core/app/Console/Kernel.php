@@ -15,7 +15,23 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Update market prices every minute for real-time fluctuation
+        $schedule->call(function () {
+            try {
+                defaultCurrencyDataProvider()->updateMarkets();
+            } catch (\Exception $e) {
+                \Log::error('Market data update failed: ' . $e->getMessage());
+            }
+        })->everyMinute()->name('update-market-prices');
+        
+        // Update crypto prices every minute
+        $schedule->call(function () {
+            try {
+                defaultCurrencyDataProvider()->updateCryptoPrice();
+            } catch (\Exception $e) {
+                \Log::error('Crypto price update failed: ' . $e->getMessage());
+            }
+        })->everyMinute()->name('update-crypto-prices');
     }
 
     /**
