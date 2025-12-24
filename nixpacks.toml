@@ -3,6 +3,6 @@ cmds = [
     "cd core",
     "composer install --no-dev --optimize-autoloader --no-interaction",
     "npm install",
-    "npm run production"
+    "if [ -f resources/js/app.js ] && [ -f resources/sass/app.scss ]; then npm run production; else echo 'Skipping npm build - asset files not found'; fi"
 ]
 
