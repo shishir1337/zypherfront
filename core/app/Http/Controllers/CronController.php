@@ -6,7 +6,6 @@ use App\Constants\Status;
 use App\Lib\CurlRequest;
 use App\Lib\TradeManager;
 use App\Models\AdminNotification;
-use App\Models\BinaryTrade;
 use App\Models\CronJob;
 use App\Models\CronJobLog;
 use App\Models\Order;
@@ -37,7 +36,15 @@ class CronController extends Controller {
                 $controller = new $cron->action[0];
                 try {
                     $method = $cron->action[1];
-                    $controller->$method();
+                    // Check if method exists before calling (handles removed methods like incompleteBinary)
+                    if (!method_exists($controller, $method)) {
+                        $cronLog->error = "Method '{$method}' does not exist in " . get_class($controller) . ". This cron job may need to be updated or removed.";
+                        // Skip this cron job and mark it as disabled
+                        $cron->is_running = Status::NO;
+                        $cron->save();
+                    } else {
+                        $controller->$method();
+                    }
                 } catch (\Exception $e) {
                     $cronLog->error = $e->getMessage();
                 }
@@ -247,38 +254,5 @@ class CronController extends Controller {
         $transaction->save();
 
         return $wallet->balance;
-    }
-
-    public function incompleteBinary() {
-        try {
-            $incompleteTrades = BinaryTrade::inactive()->pending()->where('created_at', '<=', now()->subMinute(10))->with(['coinPair'])->orderBy('id', 'asc')->limit(20)->get();
-            foreach ($incompleteTrades as $trade) {
-                $trade->status     = Status::ENABLE;
-                $trade->win_status = Status::BINARY_TRADE_REFUND;
-                $trade->save();
-
-                $user           = $trade->user;
-                $currencySymbol = $trade->coinPair->market->currency->symbol;
-                $userWallet     = $user->wallets()->where('currency_id', $trade->coinPair->market->currency_id)->first();
-
-                $userWallet->balance += $trade->amount;
-                $userWallet->save();
-
-                $transaction               = new Transaction();
-                $transaction->user_id      = $user->id;
-                $transaction->wallet_id    = $userWallet->id;
-                $transaction->amount       = $trade->amount;
-                $transaction->charge       = 0;
-                $transaction->post_balance = $userWallet->balance;
-                $transaction->trx          = getTrx();
-                $transaction->trx_type     = '+';
-                $transaction->details      = $trade->amount . ' ' . $currencySymbol . 'binary trade refunded';
-                $transaction->remark       = 'binary_trade';
-                $transaction->save();
-            }
-
-        } catch (Exception $ex) {
-            throw new \Exception($ex->getMessage());
-        }
     }
 }

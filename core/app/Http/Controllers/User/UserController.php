@@ -294,6 +294,28 @@ class UserController extends Controller {
         ]);
     }
 
+    public function walletOverview() {
+        $user = auth()->user();
+        $estimatedBalance = Wallet::where('user_id', $user->id)
+            ->join('currencies', 'wallets.currency_id', 'currencies.id')
+            ->spot()
+            ->sum(DB::raw('currencies.rate * wallets.balance'));
+
+        $wallets = Wallet::where('user_id', $user->id)
+            ->spot()
+            ->take(3)
+            ->with('currency:id,name,symbol,image')
+            ->select('id', 'balance', 'currency_id')
+            ->orderBy('balance', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'estimated_balance' => $estimatedBalance,
+            'wallets' => $wallets,
+        ]);
+    }
+
     public function addToFavorite($symbol) {
         $pair = CoinPair::activeMarket()->activeCoin()->where('symbol', $symbol)->first();
         if (!$pair) {

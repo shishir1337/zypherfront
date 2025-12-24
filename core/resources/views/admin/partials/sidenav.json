@@ -65,58 +65,6 @@
                 }
             ]
         },
-        
-        "manage_binary": {
-            "title": "Manage Binary",
-            "icon": "las la-chart-line",
-            "menu_active": "admin.binary*",
-            "submenu": [
-                {
-                    "keyword": [
-                        "running binary trade",
-                        "Manage Binary",
-                        "binary trade",
-                        "binary management"
-                    ],
-                    "title": "Running Trades",
-                    "route_name": "admin.binary.trade.running",
-                    "menu_active": "admin.binary.trade.running"
-                },
-                {
-                    "keyword": [
-                        "Win binary trade",
-                        "Manage Binary",
-                        "binary trade",
-                        "binary management"
-                    ],
-                    "title": "Win Trades",
-                    "route_name": "admin.binary.trade.win",
-                    "menu_active": "admin.binary.trade.win"
-                },
-                {
-                    "keyword": [
-                        "Lose binary trade",
-                        "Manage Binary",
-                        "binary trade",
-                        "binary management"
-                    ],
-                    "title": "Lose Trades",
-                    "route_name": "admin.binary.trade.lose",
-                    "menu_active": "admin.binary.trade.lose"
-                },
-                {
-                    "keyword": [
-                        "All binary trade",
-                        "Manage Binary",
-                        "binary trade",
-                        "binary management"
-                    ],
-                    "title": "All Trades",
-                    "route_name": "admin.binary.trade.index",
-                    "menu_active": "admin.binary.trade.index"
-                }
-            ]
-        },
         "manage_currency": {
             "title": "Manage Currency",
             "icon": "las la-coins",

@@ -83,12 +83,5 @@ class Status {
     const P2P_TRADE_FEEDBACK_POSITIVE = 1;
     const P2P_TRADE_FEEDBACK_NEGATIVE = 0;
 
-    const BINARY_TRADE_PENDING = 0;
-    const BINARY_TRADE_WIN     = 1;
-    const BINARY_TRADE_LOSE    = 2;
-    const BINARY_TRADE_REFUND  = 3;
-
-    const SPOT_TRADE   = 1;
-    const BINARY_TRADE = 2;
-    const BOTH_TRADE   = 3;
+    const SPOT_TRADE = 1;
 }

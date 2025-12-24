@@ -21,13 +21,6 @@ Route::controller('TicketController')->prefix('ticket')->name('ticket.')->group(
 
 Route::get('app/deposit/confirm/{hash}', 'Gateway\PaymentController@appDepositConfirm')->name('deposit.app.confirm');
 
-Route::controller("BinaryTradeController")->prefix('binary')->group(function () {
-    Route::get('trade/{id?}', 'binary')->name('binary');
-    Route::get('trade/tab/close/{id?}/{first_coin_id?}', 'tradeTabClose')->name('binary.trade.tab.close');
-    Route::get('trade/tab/add/{id?}', 'tradeTabAdd')->name('binary.trade.tab.add');
-    Route::get('trade/tab/update/{id?}', 'tradeTabUpdate')->name('binary.trade.tab.update');
-});
-
 Route::controller("TradeController")->prefix('trade')->group(function () {
     Route::get('/order/book/{symbol}', 'orderBook')->name('trade.order.book');
     Route::get('pairs', 'pairs')->name('trade.pairs');

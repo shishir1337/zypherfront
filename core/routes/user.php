@@ -62,6 +62,7 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::get('dashboard', 'home')->name('home');
                 Route::get('download-attachments/{file_hash}', 'downloadAttachment')->name('download.attachment');
                 Route::get('more/wallet/{skip}', 'wallet')->name('more.wallet');
+                Route::get('wallet/overview', 'walletOverview')->name('wallet.overview');
 
                 //2FA
                 Route::get('twofactor', 'show2faForm')->name('twofactor');
@@ -99,16 +100,6 @@ Route::middleware('auth')->name('user.')->group(function () {
 
             Route::controller("OrderController")->prefix('order')->name('order.')->group(function () {
                 Route::post('save/{symbol}', 'save')->name('save');
-            });
-
-            Route::controller('BinaryTradeOrderController')->prefix('binary')->name('binary.')->group(function () {
-                Route::post('trade/order', 'binaryTradeOrder')->name('trade.order');
-                Route::post('trade/complete', 'binaryTradeComplete')->name('trade.complete');
-                Route::get('trade/all', 'allTrade')->name('trade.all');
-                Route::get('trade/win', 'winTrade')->name('trade.win');
-                Route::get('trade/lose', 'loseTrade')->name('trade.lose');
-                Route::get('trade/refund', 'refundTrade')->name('trade.refund');
-                Route::get('trade/history', 'tradeHistory')->name('trade.history');
             });
 
             //wallet

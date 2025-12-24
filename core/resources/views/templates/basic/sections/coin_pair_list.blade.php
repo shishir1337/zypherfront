@@ -131,7 +131,6 @@
                                         return;
                                     }
                                     let tradeUlr = "{{ route('trade', ':symbol') }}";
-                                    let binaryUrl = "{{ route('binary', ':id') }}";
                                     $.each(resp.pairs || [], function(i, pair) {
 
                                             console.log(pair);
@@ -177,25 +176,9 @@
                                 </td>
                                 <td class="text-end">
                                     <div class="d-flex justify-content-end gap-2 flex-wrap">
-                                        ${(() => {
-                                            if (pair.type == 1) {
-                                                return `<a href="${tradeUlr.replace(':symbol',pair.symbol)}" class="btn btn--sm outline">
-                                                        <i class="fas fa-chart-line"></i> @lang('Trade')
-                                                    </a>`;
-                                            } else if(pair.type == 2) {
-                                                return `<a href = "${binaryUrl.replace(':id',pair.id)}" class="btn btn--sm outline">
-                                                            <i class="las la-chart-line"></i> @lang('Binary') 
-                                                        </a>`;
-                                            } else {
-                                                return `<a href="${tradeUlr.replace(':symbol',pair.symbol)}" class="btn btn--sm outline">
-                                                        <i class="fas fa-chart-line"></i> @lang('Trade')
-                                                    </a>
-                                                    <a href="${binaryUrl.replace(':id',pair.id)}" class="btn btn--sm outline">
-                                                        <i class="las la-chart-line"></i> @lang('Binary')
-                                                    </a>`;
-                                                }
-                                            })()
-                                        } 
+                                        <a href="${tradeUlr.replace(':symbol',pair.symbol)}" class="btn btn--sm outline">
+                                            <i class="fas fa-chart-line"></i> @lang('Trade')
+                                        </a> 
                                 </div> </td> </tr>`
                             });
 

@@ -72,15 +72,7 @@ class CoinPairController extends Controller {
             'percent_charge_for_buy'  => 'required|numeric|gte:0|lt:100',
             'percent_charge_for_sell' => 'required|numeric|gte:0',
             'listed_market_name'      => 'required',
-            'binary_trade_profit'     => 'required|numeric|gte:0',
-            'type'                    => 'required|integer|in:1,2,3',
-            'min_binary_trade_amount' => 'nullable|required_if:type,2,3|numeric|gte:0',
-            'max_binary_trade_amount' => 'nullable|required_if:type,2,3|numeric|gte:min_binary_trade_amount',
-            'binary_increment_amount' => 'nullable|required_if:type,2,3|numeric|gte:0',
-            'binary_trade_duration'   => 'nullable|required_if:type,2,3|array|min:1',
-            'binary_trade_duration.*' => 'nullable|required_if:type,2,3|integer|gt:0',
-        ], [
-            'binary_trade_duration.*' => 'Duration must be an integer',
+            'type'                    => 'required|integer|in:1',
         ]);
 
         if (!$id) {
@@ -124,13 +116,8 @@ class CoinPairController extends Controller {
         $coinPair->maximum_sell_amount     = $request->maximum_sell_amount;
         $coinPair->percent_charge_for_sell = $request->percent_charge_for_sell;
         $coinPair->percent_charge_for_buy  = $request->percent_charge_for_buy;
-        $coinPair->binary_trade_profit     = $request->binary_trade_profit;
         $coinPair->listed_market_name      = strtoupper($request->listed_market_name);
-        $coinPair->binary_trade_duration   = $request->binary_trade_duration;
-        $coinPair->min_binary_trade_amount = $request->min_binary_trade_amount;
-        $coinPair->max_binary_trade_amount = $request->max_binary_trade_amount;
-        $coinPair->binary_increment_amount = $request->binary_increment_amount;
-        $coinPair->type                    = $request->type;
+        $coinPair->type                    = Status::SPOT_TRADE;
 
         if ($request->is_default) {
             CoinPair::where('id', '!=', $id)->where('is_default', Status::YES)->update(['is_default' => Status::NO]);

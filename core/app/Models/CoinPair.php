@@ -10,9 +10,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class CoinPair extends Model {
     use GlobalStatus, ApiQuery;
-    protected $casts = [
-        'binary_trade_duration' => 'object',
-    ];
     protected $guard = ['id'];
 
     public function market() {
@@ -30,9 +27,6 @@ class CoinPair extends Model {
     public function trade() {
         return $this->hasMany(Trade::class, 'pair_id');
     }
-    public function binaryTrade() {
-        return $this->hasMany(BinaryTrade::class, 'coin_pair_id');
-    }
 
     public function scopeActiveMarket($query) {
         return $query->whereHas('market', function ($q) {
@@ -49,12 +43,6 @@ class CoinPair extends Model {
 
     public function scopeSpotTrade($query) {
         return $this->where('type', Status::SPOT_TRADE);
-    }
-    public function scopeBinaryTrade($query) {
-        return $this->where('type', Status::BINARY_TRADE);
-    }
-    public function scopeBothTrade($query) {
-        return $this->where('type', Status::BOTH_TRADE);
     }
 
     public function isDefaultStatus(): Attribute {

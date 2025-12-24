@@ -80,17 +80,6 @@
                                             </span>
                                         </a>
                                     </li>
-                                    <li class="mega-menu-list__item mega-item-bg3">
-                                        <a href="{{ route('binary') }}" class="mega-menu-list__link">
-                                            <div class="mega-menu-list__content">
-                                                <span class="mega-menu-list__title">@lang('Binary')</span>
-                                                <p class="mega-menu-list__desc">@lang('Binary trading involves predicting asset price movements over a set time.')</p>
-                                            </div>
-                                            <span class="mega-menu-list__icon">
-                                                <img class="fit-image" src="{{ getImage('assets/images/extra_images/trading.png', null) }}">
-                                            </span>
-                                        </a>
-                                    </li>
                                 </ul>
                             </div>
                         </div>

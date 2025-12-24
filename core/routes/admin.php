@@ -57,12 +57,6 @@ Route::middleware('admin')->group(function () {
         });
         Route::get('trade/history', 'tradeHistory')->name('trade.history');
     });
-    Route::controller('BinaryTradeController')->name('binary.trade.')->prefix('binary/trade')->group(function () {
-        Route::get('index', 'index')->name('index');
-        Route::get('running', 'running')->name('running');
-        Route::get('win', 'win')->name('win');
-        Route::get('lose', 'lose')->name('lose');
-    });
 
     /*
     // P2P ADMIN ROUTES DISABLED - Feature removed from platform

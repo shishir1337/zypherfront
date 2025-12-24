@@ -120,8 +120,15 @@ class OrderController extends Controller {
         }
 
         $pair = CoinPair::activeMarket()->activeCoin()->where(function ($query) {
-            $query->where('type', Status::SPOT_TRADE)->orWhere('type', Status::BOTH_TRADE);
+            $query->where('type', Status::SPOT_TRADE)
+                  ->orWhereNull('type');
         })->with('market.currency', 'coin', 'marketData')->where('symbol', $symbol)->first();
+        
+        // Auto-migrate NULL types to SPOT_TRADE
+        if ($pair && $pair->type === null) {
+            $pair->type = Status::SPOT_TRADE;
+            $pair->save();
+        }
 
         if (!$pair) {
             $notify[] = 'Pair not found';

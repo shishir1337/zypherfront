@@ -17,19 +17,35 @@ use Illuminate\Support\Facades\Validator;
 
 class TradeController extends Controller {
     public function trade($symbol = null) {
-        $pair = CoinPair::active()->activeMarket()->activeCoin()->where(function ($query) {
-            $query->where('type', Status::SPOT_TRADE)->orWhere('type', Status::BOTH_TRADE);
-        })->with('market', 'coin', 'marketData');
+        // Build base query - accept SPOT_TRADE or NULL (for existing pairs without type set)
+        $baseQuery = CoinPair::active()->activeMarket()->activeCoin()
+            ->where(function($query) {
+                $query->where('type', Status::SPOT_TRADE)
+                      ->orWhereNull('type');
+            })
+            ->with('market', 'coin', 'marketData');
 
         if ($symbol) {
-            $pair = $pair->where('symbol', $symbol)->first();
+            $pair = $baseQuery->where('symbol', $symbol)->first();
         } else {
-            $pair = $pair->where('is_default', Status::YES)->first();
+            // First try to get default pair
+            $pair = (clone $baseQuery)->where('is_default', Status::YES)->first();
+            
+            // If no default pair, get the first available pair
+            if (!$pair) {
+                $pair = $baseQuery->first();
+            }
         }
 
         if (!$pair) {
-            $notify[] = ['error', 'No pair found'];
-            return back()->withNotify($notify);
+            $notify[] = ['error', 'No trading pair found. Please contact administrator.'];
+            return to_route('home')->withNotify($notify);
+        }
+        
+        // Update pair type to SPOT_TRADE if it's NULL (migration helper)
+        if ($pair->type === null) {
+            $pair->type = Status::SPOT_TRADE;
+            $pair->save();
         }
 
         $markets              = Market::with('currency:id,name,symbol')->active()->get();
@@ -165,21 +181,33 @@ class TradeController extends Controller {
     }
 
     private function findPair($symbol = null) {
-        $pair = CoinPair::active()->activeMarket()->activeCoin()->where(function ($query) {
-            $query->where('type', Status::SPOT_TRADE)->orWhere('type', Status::BOTH_TRADE);
-        });
+        $pair = CoinPair::active()->activeMarket()->activeCoin()
+            ->where(function($query) {
+                $query->where('type', Status::SPOT_TRADE)
+                      ->orWhereNull('type');
+            });
         if ($symbol) {
             $pair = $pair->where('symbol', $symbol)->first();
         } else {
             $pair = $pair->where('is_default', Status::YES)->first();
         }
+        
+        // Auto-migrate NULL types to SPOT_TRADE
+        if ($pair && $pair->type === null) {
+            $pair->type = Status::SPOT_TRADE;
+            $pair->save();
+        }
+        
         return $pair;
     }
 
     public function pairs() {
-        $query = CoinPair::active()->activeMarket()->activeCoin()->where(function ($query) {
-            $query->where('type', Status::SPOT_TRADE)->orWhere('type', Status::BOTH_TRADE);
-        })->with('coin:name,id,symbol', 'market:id,name,currency_id', 'market.currency:id,symbol', 'marketData:id,pair_id,price,html_classes,percent_change_1h');
+        $query = CoinPair::active()->activeMarket()->activeCoin()
+            ->where(function($q) {
+                $q->where('type', Status::SPOT_TRADE)
+                  ->orWhereNull('type');
+            })
+            ->with('coin:name,id,symbol', 'market:id,name,currency_id', 'market.currency:id,symbol', 'marketData:id,pair_id,price,html_classes,percent_change_1h');
 
         if (request()->marketId) {
             $query->where('market_id', request()->marketId);

@@ -25,12 +25,6 @@
                     <span class="text">@lang('Trade History')</span>
                 </a>
             </li>
-            <li class="sidebar-menu-list__item ">
-                <a href="{{ route('user.binary.trade.all') }}" class="sidebar-menu-list__link {{ menuActive('user.binary.trade.*') }} ">
-                    <span class="icon"><i class="las la-chart-line"></i></span>
-                    <span class="text">@lang('Binary Trade History')</span>
-                </a>
-            </li>
 
             <li class="sidebar-menu-list__item ">
                 <a href="{{ route('user.wallet.list', 'spot') }}" class="sidebar-menu-list__link {{ menuActive('user.wallet.*') }}">

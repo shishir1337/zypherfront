@@ -14,7 +14,6 @@
     @stack('style-lib')
 
     <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/main.css') }}">
-    <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/binary-trade.css') }}">
     <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/custom.css') }}">
     <link rel="manifest" href="{{ route('pwa.configuration') }}">
 
@@ -80,7 +79,6 @@
 
     <script src="{{ asset('assets/global/js/jquery-3.7.1.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/bootstrap.bundle.min.js') }}"></script>
-    <script src="{{ asset($activeTemplateTrue . 'js/binary-trade.js') }}"></script>
     <script src="{{ asset($activeTemplateTrue . 'js/main.js') }}"></script>
 
     @php
@@ -117,7 +115,7 @@
                 window.location.href = "{{ route('home') }}/change/" + langCode;
             });
 
-            @if (!in_array(request()->route()->getName(), ['trade', 'binary']))
+            @if (!in_array(request()->route()->getName(), ['trade']))
                 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
                     let windowsIsDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
                     if (windowsIsDarkTheme) {

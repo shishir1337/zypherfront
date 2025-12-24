@@ -87,12 +87,9 @@
                                            value="{{ old('listed_market_name', @$coinPair->listed_market_name) }}">
                                 </div>
                                 <div class="form-group col-sm-4">
-                                    <label for="inputName">@lang('Choose Trade Type')<span class="text--danger">*</span></label>
-                                    <select class="form-control" name="type" required>
-                                        <option value="1" @selected(@$coinPair->type == Status::SPOT_TRADE)>@lang('Spot Trade')</option>
-                                        <option value="2" @selected(@$coinPair->type == Status::BINARY_TRADE)>@lang('Binary Trade')</option>
-                                        <option value="3" @selected(@$coinPair->type == Status::BOTH_TRADE)>@lang('Both Trade')</option>
-                                    </select>
+                                    <label for="inputName">@lang('Trade Type')</label>
+                                    <input type="text" class="form-control" value="@lang('Spot Trade')" readonly>
+                                    <input type="hidden" name="type" value="1">
                                 </div>
                                 <div class="form-group col-sm-4">
                                     <label for="inputName">@lang('Default Pair')</label>
@@ -102,69 +99,6 @@
                                 </div>
                             </div>
 
-                            <h6 class="my-3">@lang('Binary Trade')</h6>
-                            <div class="row">
-                                <div class="form-group col-xl-3 col-sm-6">
-                                    <label>@lang('Minimum Trade Amount')</label>
-                                    <small title="@lang('The minimum binary trade amount is the smallest quantity required to buy coin on this pair.')"><i class="las la-info-circle"></i></small>
-                                    <div class="input-group appnend-coin-sym">
-                                        <input type="number" step="any" class="form-control" name="min_binary_trade_amount"
-                                               value="{{ old('min_binary_trade_amount', @$coinPair ? getAmount(@$coinPair->min_binary_trade_amount) : '') }}" required>
-                                    </div>
-                                </div>
-                                <div class="form-group col-xl-3 col-sm-6">
-                                    <label>@lang('Maximum Trade Amount')</label>
-                                    <small title="@lang('The maximum binary trade amount is the highest quantity of coin to buy on this pair. Use -1 for no maximum limit.')"><i class="las la-info-circle"></i></small>
-                                    <div class="input-group appnend-coin-sym">
-                                        <input type="number" step="any" class="form-control" name="max_binary_trade_amount"
-                                               value="{{ old('max_binary_trade_amount', @$coinPair ? getAmount(@$coinPair->max_binary_trade_amount) : '') }}" required>
-                                    </div>
-                                </div>
-                                <div class="form-group col-xl-3 col-sm-6">
-                                    <label>@lang('Increment Amount')</label>
-                                    <div class="input-group appnend-coin-sym">
-                                        <input type="number" step="any" class="form-control" name="binary_increment_amount"
-                                               value="{{ old('binary_increment_amount', @$coinPair ? getAmount(@$coinPair->binary_increment_amount) : '') }}" required>
-                                    </div>
-                                </div>
-                                <div class="form-group col-xl-3 col-sm-6">
-                                    <label>@lang('Profit of Binary Trade')</label>
-                                    <small title="@lang('Set applicable percent charge for the binary trade of coin on this pair.')"><i class="las la-info-circle"></i></small>
-                                    <div class="input-group">
-                                        <input type="number" step="any" class="form-control" name="binary_trade_profit"
-                                               value="{{ old('binary_trade_profit', @$coinPair ? getAmount(@$coinPair->binary_trade_profit) : '') }}" required>
-                                        <span class="input-group-text">%</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="my-3 d-flex justify-content-between flex-wrap align-items-center">
-                                <h6>@lang('Binary Trade Duration')</h6>
-                                <button type="button" class="btn btn-outline--primary addDuration"><i class="las la-plus"></i> @lang('Add More')</button>
-                            </div>
-
-                            <div class="row duration-area">
-                                <div class="form-group col-sm-4">
-                                    <label>@lang('Duration')<span class="text--danger">*</span></label>
-                                    <div class="input-group">
-                                        <input type="number" name="binary_trade_duration[]" min="1" value="{{ @$coinPair->binary_trade_duration[0] }}" placeholder="@lang('Duration in seconds')" class="form-control">
-                                        <span class="input-group-text">@lang('seconds')</span>
-                                    </div>
-                                </div>
-                                @foreach (@$coinPair->binary_trade_duration ?? [] as $duration)
-                                    @if ($loop->first)
-                                        @continue
-                                    @endif
-                                    <div class="form-group col-sm-4">
-                                        <label>@lang('Duration')<span class="text--danger">*</span></label>
-                                        <div class="input-group">
-                                            <input type="number" name="binary_trade_duration[]" min="1" value="{{ $duration }}" placeholder="@lang('Duration in seconds')" class="form-control">
-                                            <span class="input-group-text">@lang('seconds')</span>
-                                            <button type="button" class="input-group-text bg--red text-white border-0 removeDuration"><i class="las la-times"></i></button>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            </div>
                             <button type="submit" class="btn btn--primary w-100 h-45 ">@lang('Submit')</button>
                         </div>
                     </form>
@@ -213,26 +147,6 @@
             $("select[name=market]").select2({
                 dropdownParent: $("#market-list")
             });
-
-            $('.addDuration').on('click', function(e) {
-                e.preventDefault();
-                var durationArea = $('.duration-area');
-                var durationHtml = `<div class="form-group col-sm-4">
-                                <label>@lang('Duration')<span class="text--danger">*</span></label>
-                                <div class="input-group">
-                                    <input type="number" name="binary_trade_duration[]" min="1" placeholder="@lang('Duration in seconds')" class="form-control">
-                                    <span class="input-group-text">@lang('seconds')</span>
-                                    <button type="button" class="input-group-text bg--red text-white border-0 removeDuration"><i class="las la-times"></i></button>
-                                </div>
-                            </div>`;
-                durationArea.append(durationHtml);
-            });
-
-            $(document).on('click', '.removeDuration', function(e) {
-                e.preventDefault();
-                $(this).closest('.form-group').remove();
-            });
-
 
         })(jQuery);
     </script>
