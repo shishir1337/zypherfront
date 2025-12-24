@@ -1,7 +1,0 @@
-[phases.build]
-cmds = [
-    "cd core && composer install --no-dev --optimize-autoloader --no-interaction",
-    "cd core && npm install",
-    "cd core && (([ -f resources/js/app.js ] && [ -f resources/sass/app.scss ] && npm run production) || echo 'Skipping npm build - asset files not found') || true"
-]
-
