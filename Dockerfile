@@ -7,11 +7,14 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
+    libgmp-dev \
+    libzip-dev \
+    libicu-dev \
     zip \
     unzip \
     nginx \
     supervisor \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd gmp zip intl \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
