@@ -1,52 +1,20 @@
 FROM php:8.3-fpm
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    libgmp-dev \
-    libzip-dev \
-    libicu-dev \
-    zip \
-    unzip \
-    nginx \
-    supervisor \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd gmp zip intl \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    git unzip curl libpng-dev libonig-dev libxml2-dev zip \
+    && docker-php-ext-install pdo_mysql mbstring exif bcmath gd
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+WORKDIR /app
 
-# Set working directory
-WORKDIR /var/www/html
+COPY . .
 
-# Copy application files
-COPY . /var/www/html/
+RUN curl -sS https://getcomposer.org/installer | php \
+    -- --install-dir=/usr/local/bin --filename=composer
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html
+# 👇 Composer MUST run inside core
+WORKDIR /app/core
+RUN composer install --no-dev --optimize-autoloader
 
-# Install PHP dependencies
-WORKDIR /var/www/html/core
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN chmod -R 775 storage bootstrap/cache
 
-# Copy Nginx configuration
-COPY docker/nginx.conf /etc/nginx/sites-available/default
-
-# Copy supervisor configuration
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Copy startup script
-COPY docker/start.sh /usr/local/bin/start.sh
-RUN chmod +x /usr/local/bin/start.sh
-
-# Expose port
-EXPOSE 80
-
-# Start supervisor via startup script
-CMD ["/usr/local/bin/start.sh"]
-
+CMD ["php-fpm"]
