@@ -87,7 +87,10 @@ class AppServiceProvider extends ServiceProvider {
             ]);
         });
 
-        if (gs('force_ssl')) {
+        // Force HTTPS scheme for all URLs in production
+        if (env('APP_ENV') === 'production' || request()->isSecure()) {
+            \URL::forceScheme('https');
+        } elseif (gs('force_ssl')) {
             \URL::forceScheme('https');
         }
 
