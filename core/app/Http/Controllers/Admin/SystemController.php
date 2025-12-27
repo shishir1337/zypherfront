@@ -74,7 +74,20 @@ class SystemController extends Controller
             ]);
         }
 
-        $purchasecode = env('PURCHASECODE');
+        // Viserlab.com is shutdown - bypassing remote validation
+        // Purchase code is now always verified locally
+        $purchasecode = env('PURCHASECODE', 'verified');
+        
+        // Return that system is already up to date since remote server is unavailable
+        return response()->json([
+            'status'=>'info',
+            'message'=>[
+                'System updates are not available as the update server is no longer accessible. Please manage updates manually.'
+            ]
+        ]);
+        
+        // OLD CODE - Disabled due to viserlab.com shutdown
+        /*
         if (!$purchasecode) {
             return response()->json([
                 'status'=>'error',
@@ -131,6 +144,7 @@ class SystemController extends Controller
             file_put_contents($directory.$key.'.zip',$fileContent);
             $files[$key] = $fileContent;
         }
+        */
 
         $fileNames = array_keys($files);
         foreach($fileNames as $fileName){

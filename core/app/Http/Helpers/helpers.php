@@ -173,6 +173,12 @@ function osBrowser() {
 }
 
 function getTemplates() {
+    // Viserlab.com is shutdown - bypassing remote template server
+    // Return null to indicate no remote templates available
+    return null;
+    
+    // OLD CODE - Disabled due to viserlab.com shutdown
+    /*
     $param['purchasecode'] = env("PURCHASECODE");
     $param['website']      = @$_SERVER['HTTP_HOST'] . @$_SERVER['REQUEST_URI'] . ' - ' . env("APP_URL");
     $url                   = VugiChugi::gttmp() . systemDetails()['name'];
@@ -182,6 +188,7 @@ function getTemplates() {
     } else {
         return null;
     }
+    */
 }
 
 function getPageSections($arr = false) {

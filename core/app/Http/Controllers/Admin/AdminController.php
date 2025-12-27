@@ -341,7 +341,14 @@ class AdminController extends Controller {
     }
 
     public function requestReport() {
-        $pageTitle            = 'Your Listed Report & Request';
+        // Viserlab.com is shutdown - bypassing remote report server
+        $pageTitle = 'Your Listed Report & Request';
+        // Return empty reports since remote server is unavailable
+        $reports = [];
+        return view('admin.reports', compact('reports', 'pageTitle'));
+        
+        // OLD CODE - Disabled due to viserlab.com shutdown
+        /*
         $arr['app_name']      = systemDetails()['name'];
         $arr['app_url']       = env('APP_URL');
         $arr['purchase_code'] = env('PURCHASECODE');
@@ -356,6 +363,7 @@ class AdminController extends Controller {
         }
         $reports = $response->message[0];
         return view('admin.reports', compact('reports', 'pageTitle'));
+        */
     }
 
     public function reportSubmit(Request $request) {
@@ -363,6 +371,14 @@ class AdminController extends Controller {
             'type'    => 'required|in:bug,feature',
             'message' => 'required',
         ]);
+        
+        // Viserlab.com is shutdown - bypassing remote report submission
+        // Return success message since remote server is unavailable
+        $notify[] = ['success', 'Report submission is currently unavailable as the support server is no longer accessible.'];
+        return back()->withNotify($notify);
+        
+        // OLD CODE - Disabled due to viserlab.com shutdown
+        /*
         $url = 'https://license.viserlab.com/issue/add';
 
         $arr['app_name']      = systemDetails()['name'];
@@ -380,6 +396,7 @@ class AdminController extends Controller {
         }
         $notify[] = ['success', $response->message];
         return back()->withNotify($notify);
+        */
     }
 
     public function readAllNotification() {
