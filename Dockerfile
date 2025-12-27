@@ -3,8 +3,8 @@ FROM php:8.3-fpm
 # Install nginx and required PHP extensions
 RUN apt-get update && apt-get install -y \
     nginx \
-    git unzip curl libpng-dev libonig-dev libxml2-dev zip \
-    && docker-php-ext-install pdo_mysql mbstring exif bcmath gd \
+    git unzip curl libpng-dev libonig-dev libxml2-dev zip libgmp-dev \
+    && docker-php-ext-install pdo_mysql mbstring exif bcmath gd gmp \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
