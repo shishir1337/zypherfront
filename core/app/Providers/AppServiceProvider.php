@@ -28,6 +28,17 @@ class AppServiceProvider extends ServiceProvider {
      * Bootstrap any application services.
      */
     public function boot(): void {
+        // Viserlab.com is shutdown - bypassing install check
+        // System is always considered installed since remote validation is no longer needed
+        try {
+            // Try to set cache, but don't fail if cache is not available
+            cache()->put('SystemInstalled', true);
+        } catch (\Exception $e) {
+            // Cache might not be available yet (e.g., during Docker build), ignore
+        }
+        
+        // OLD CODE - Disabled since viserlab.com is shutdown and install route doesn't exist
+        /*
         if (!cache()->get('SystemInstalled')) {
             $envFilePath = base_path('.env');
             if (!file_exists($envFilePath)) {
@@ -42,6 +53,7 @@ class AppServiceProvider extends ServiceProvider {
                 cache()->put('SystemInstalled', true);
             }
         }
+        */
 
         $viewShare['emptyMessage'] = 'Data not found';
         view()->share($viewShare);
