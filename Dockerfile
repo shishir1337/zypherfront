@@ -26,7 +26,7 @@ RUN chmod -R 775 storage bootstrap/cache
 # Configure nginx for Laravel
 RUN rm -f /etc/nginx/sites-enabled/default \
     && echo "server {" > /etc/nginx/conf.d/default.conf \
-    && echo "    listen 80;" >> /etc/nginx/conf.d/default.conf \
+    && echo "    listen 3000;" >> /etc/nginx/conf.d/default.conf \
     && echo "    server_name _;" >> /etc/nginx/conf.d/default.conf \
     && echo "    root /app/core/public;" >> /etc/nginx/conf.d/default.conf \
     && echo "    index index.php;" >> /etc/nginx/conf.d/default.conf \
@@ -53,7 +53,7 @@ RUN echo '#!/bin/bash' > /start.sh \
     && echo 'nginx -g "daemon off;"' >> /start.sh \
     && chmod +x /start.sh
 
-# Expose port 80 (Coolify will map this to your configured port)
-EXPOSE 80
+# Expose port 3000 (matches Coolify's default)
+EXPOSE 3000
 
 CMD ["/start.sh"]
